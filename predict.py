@@ -12,12 +12,13 @@ change in polarization angle, and the effective depolarization.
 
 
 import RMextract.getRM as RME
-from astropy.time import Time
+from astropy.time import Time,TimeDelta
 import numpy as np
-from astropy.coordinates import EarthLocation
+from astropy.coordinates import EarthLocation,SkyCoord
 import astropy.units as u
+from apply import find_freq_axis
 
-C = 2.997924538e8 # Speed of light [m/s]
+C = 2.99792458e8 # Speed of light [m/s]
 
 
 
@@ -153,11 +154,12 @@ def calculate_correction(start_time, end_time, freq_array, telescope_location,
     
     
 
-def generate_plots(times,RMs,corr,freq_array,savename=None):
+def generate_plots(times,RMs,corr,freq_array,position=None,savename=None):
     """Makes a figure with two plots: the RM variation over time, 
     and the (modulus of the) correction as a function of frequency.
     If savename contains a string it will save the plots to that filename,
     otherwise the plots are not saved.
+    If position ([ra,dec]) is given, it will be printed above the plots.
     """
     from matplotlib import pyplot as plt
     from matplotlib import dates as mdates
@@ -175,9 +177,14 @@ def generate_plots(times,RMs,corr,freq_array,savename=None):
     ax2.plot(freq_array,np.abs(corr),'k.')
     ax2.set_xlabel('Frequency [Hz]')
     ax2.set_ylabel('|$\Theta(\lambda^2)$|')
+    if position is not None:
+        ax1.set_title("RA: {:.2f}°, Dec: {:.2f}°".format(position[0],position[1]))
     
     if savename is not None:
-        plt.savefig(savename,bbox_inches='tight')
+        if savename == "screen":
+            plt.show()    
+        else:
+            plt.savefig(savename,bbox_inches='tight')
 
 
 
@@ -197,26 +204,26 @@ def main():
     parser = argparse.ArgumentParser(description=descStr,
                                  formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-F",dest="fits",default=None,metavar='FILENAME',
-                        help="FITS cube containing frequencies and observation time.")
+                        help="FITS cube relevant information in header.")
     parser.add_argument("-d", dest="times", nargs=2,type=str,default=None,
                         metavar=('START','END'),
                         help="start and end time strings.")
-    parser.add_argument("-c", dest=("freq_parms"),nargs=3,default=None,
+    parser.add_argument("-c", dest=("freq_parms"),nargs=3,default=None,type=float,
                         metavar=('MINFREQ','MAXFREQ','CHANNELWIDTH'),
                         help=("Generate channel frequencies (in Hz): \n"
                               "    minfreq, maxfreq, channel_width"))
     parser.add_argument("-t",dest='telescope_name',type=str,default=None,
                         help="Telescope name")
     parser.add_argument("-T",dest='telescope_coords',nargs=3,type=float,default=None,
-                        metavar=('LAT','LONG','ALT'),
+                        metavar=('LONG','LAT','ALT'),
                         help="Telescope coordinates:\n    lat[deg],long[deg], altitude[m].")
     parser.add_argument('-p',dest='pointing',nargs=2,type=float,default=None,
                         metavar=('RA','DEC'),
                         help="Pointing center: RA[deg], Dec[deg]")
-    parser.add_argument("-s", dest='savefile',type=str,default=None,metavar='FILENAME',
+    parser.add_argument("-s", dest='savefile',type=str,default=None,metavar='CORRFILE',
                         help="Filename to save correction data to.")
-    parser.add_argument("-S", dest='savefig',type=str,default=None,metavar='FILENAME',
-                        help="Filename to save the plots to.")
+    parser.add_argument("-S", dest='savefig',type=str,default=None,metavar='FIGFILE',
+                        help="Filename to save the plots to. Entering 'screen' plots to the screen.")
     parser.add_argument("--timestep",dest='timestep',default=600.,type=float,
                         help="Timestep for ionospheric prediction, in seconds. Default = 600")
     args = parser.parse_args()
@@ -236,18 +243,43 @@ def main():
     if args.fits is not None:
         import astropy.io.fits as pf
         header=pf.getheader(args.fits)
-        #TO-DO
-    
+        if 'DATE-OBS' in header.keys():
+            start_time=header['DATE-OBS']
+        if 'DATE-OBS' in header.keys() and 'DURATION' in header.keys():
+            end_time=Time(header['DATE-OBS'])+TimeDelta(header['DURATION'],format="sec")
+        
+        #For coordinates, the code will always use the middle pixel to derive
+        #the RA and Dec. Assumes position coordinates are in first 2 axes.
+        if 'RA' in header['CTYPE1']:
+            ra=header['CRVAL1']+header['CDELT1']*(header['NAXIS1']/2-header['CRPIX1'])
+        if 'DEC' in header['CTYPE2']:
+            dec=header['CRVAL2']+header['CDELT2']*(header['NAXIS2']/2-header['CRPIX2'])
+        if 'GLON' in header['CTYPE1'] and 'GLAT' in header['CTYPE2']:
+        #Support galactic coordinates, just in case:
+            gl=header['CRVAL1']+header['CDELT1']*(header['NAXIS1']/2-header['CRPIX1'])
+            gb=header['CRVAL2']+header['CDELT2']*(header['NAXIS2']/2-header['CRPIX2'])
+            position=SkyCoord(gl,gb,frame='galactic',unit='deg')
+            ra=position.fk5.ra.deg
+            dec=position.fk5.dec.deg
+        if 'TELESCOP' in header.keys():
+            telescope=header['TELESCOP']
+        freq_axis=str(find_freq_axis(header))
+        if freq_axis != '0':  
+            chan0=header['CRVAL'+freq_axis]-header['CDELT'+freq_axis]*(header['CRPIX'+freq_axis]-1)
+            chan_final=chan0+(header['NAXIS'+freq_axis]-1)*header['CDELT'+freq_axis]
+            freq_arr=np.linspace(chan0,chan_final,header['NAXIS'+freq_axis])
+
+            
     #Any parametrs taken from FITS header can be overridden by manual inputs:
     if args.times is not None:
         start_time=Time(args.times[0])
         end_time=Time(args.times[1])
         
-    if freq_arr is not None:
+    if args.freq_parms is not None:
         freq_arr=np.arange(args.freq_parms[0],args.freq_parms[1],args.freq_parms[2])
 
-    if args.telescope is not None:
-        telescope = get_telescope_coordinates(args.telescope)
+    if args.telescope_name is not None:
+        telescope = get_telescope_coordinates(args.telescope_name)
     if args.telescope_coords is not None:
         telescope = get_telescope_coordinates(args.telescope_coords)
     
@@ -265,6 +297,7 @@ def main():
 
     if len(missing_parms) > 0:
         print("Missing parameters:",missing_parms)
+        raise Exception("Cannot continue without those parameters.")
     
     times,RMs,correction=calculate_correction(start_time, end_time, freq_arr, telescope,
                          ra,dec, timestep=args.timestep,ionexPath='./IONEXdata/')
@@ -272,8 +305,8 @@ def main():
     if args.savefile is not None:
         write_correction(freq_arr,correction,args.savefile)
 
-
-    generate_plots(times,RMs,correction,freq_arr,savename=args.savefig)
+    if args.savefig is not None:
+        generate_plots(times,RMs,correction,freq_arr,position=[ra,dec],savename=args.savefig)
     
     
     

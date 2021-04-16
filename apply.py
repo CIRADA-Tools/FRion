@@ -89,7 +89,7 @@ def write_corrected_cubes(Qoutputname,Uoutputname,Qcorr,Ucorr,header,overwrite=F
 
 
     pf.writeto(Qoutputname,Qcorr,output_header,overwrite=overwrite)
-    pf.writeto(Qoutputname,Qcorr,output_header,overwrite=overwrite)
+    pf.writeto(Uoutputname,Ucorr,output_header,overwrite=overwrite)
 
     
 
@@ -106,7 +106,10 @@ def correct_cubes(Qdata,Udata,correction):
     """
     
     Pdata=Qdata+1.j*Udata #Input complex polarization
-    Pcorr=Pdata/correction 
+    arrshape=np.array(Pdata.shape)  #the correction needs the same number of
+    arrshape[:]=1                   #axes as the input data
+    arrshape[0]=correction.size     #(but they can all be degenerate)
+    Pcorr=np.true_divide(Pdata,np.reshape(correction,arrshape))
     Qcorr=Pcorr.real
     Ucorr=Pcorr.imag
     
@@ -123,7 +126,7 @@ def apply_correction_to_files(Qfile,Ufile,correctionfile,Qoutfile,Uoutfile,overw
     """
     
     #Get all data:
-    correction=read_correction(correctionfile)
+    frequencies,correction=read_correction(correctionfile)
     Qdata,Udata,header=readData(Qfile,Ufile)
     
     #Checks for data consistency.
@@ -131,6 +134,10 @@ def apply_correction_to_files(Qfile,Ufile,correctionfile,Qoutfile,Uoutfile,overw
         raise Exception("Q and U files don't have same dimensions.")
     if Qdata.shape[0] != correction.size:
         raise Exception("Correction file does not have same number of channels as FITS cube.")
+    #Currently this doesn't actually check that the frequencies are the same,
+    #just that the number of channels is the same. Should this be a more
+    #strict check?
+
 
     #Apply correction
     Qcorr,Ucorr=correct_cubes(Qdata,Udata,correction)
@@ -150,7 +157,6 @@ def main():
     
     import argparse
     import os
-    #TODO
     descStr = """
     Apply correction for ionospheric Faraday rotation to Stokes Q and U FITS
     cubes. Requires the file names for the input cubes, output cubes, and the
@@ -160,17 +166,16 @@ def main():
 
     parser = argparse.ArgumentParser(description=descStr,
                                  formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("fitsQ",dest="fitsQ",
+    parser.add_argument("fitsQ",metavar="fitsQ",
                         help="FITS cube containing (uncorrected) Stokes Q data.")
-    parser.add_argument("fitsU",dest="fitsU",
+    parser.add_argument("fitsU",metavar="fitsU",
                         help="FITS cube containing (uncorrected) Stokes U data.")
-    parser.add_argument("correctionFile",dest="correctionFile",
+    parser.add_argument("correctionFile",metavar="correctionFile",
                         help="File containing ionospheric correction to be applied.")
-    parser.add_argument("Qcorrected",dest="outQ",
+    parser.add_argument("outQ",metavar="Qcorrected",
                         help="Output filename for corrected Stokes Q cube.")
-    parser.add_argument("Ucorrected",dest="outU",
+    parser.add_argument("outU",metavar="Ucorrected",
                         help="Output filename for corrected Stokes U cube.")
-
     parser.add_argument("-o",dest="overwrite",action="store_true",
                         help="Overwrite exising output files? [False]")
 
