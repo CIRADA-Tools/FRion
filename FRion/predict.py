@@ -16,7 +16,7 @@ from astropy.time import Time,TimeDelta
 import numpy as np
 from astropy.coordinates import EarthLocation,SkyCoord
 import astropy.units as u
-from FRion.apply import find_freq_axis
+from FRion.correct import find_freq_axis
 
 C = 2.99792458e8 # Speed of light [m/s]
 
@@ -46,13 +46,12 @@ def calculate_correction(start_time, end_time, freq_array, telescope_location,
     Returns:
         tuple containing
         
-        - times (array): 
-            vector of times (in MJD seconds) of each ionospheric RM calculation   
-        - RMs (array): 
-            vector of RM values computed for each time step  
-        - correction (array) 
-            vector containing the (complex) ionospheric polarization (Theta) 
-            for each frequency channel.  
+        -times (array): vector of times (in MJD seconds) of each ionospheric RM calculation   
+        
+        -RMs (array): vector of RM values computed for each time step  
+        
+        -correction (array) vector containing the (complex) ionospheric polarization (Theta) 
+        for each frequency channel.  
     
     """
 
