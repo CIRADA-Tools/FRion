@@ -16,112 +16,44 @@ from astropy.time import Time,TimeDelta
 import numpy as np
 from astropy.coordinates import EarthLocation,SkyCoord
 import astropy.units as u
-from apply import find_freq_axis
+from FRion.apply import find_freq_axis
 
 C = 2.99792458e8 # Speed of light [m/s]
-
-
-
-def get_telescope_coordinates(telescope):
-    """Return the astropy.coordinates EarthLocation object associated
-    with the position of the telescope.
-    The input must be either a string with the name of a pre-programmed telescope,
-     a 3-component tuple with the latitude [deg], longitude [deg], and height [m],
-     or an EarthLocation object.
-    """
-    if type(telescope) == EarthLocation: #Pass EarthLocations through without processing
-        return telescope
-    elif type(telescope) == str: #Hardcoded coordinates for some telescopes.
-        if telescope == 'ASKAP':
-            lat = -1*26+42/60+15/3600 #degree
-            long = +1*116+39/60+32/3600 # degree
-            height = 381.0 #
-        else:
-            raise Exception("Telescope name not recognized.")
-        return EarthLocation(lat=lat*u.deg, lon=long*u.deg, height=height*u.m)
-    elif (type(telescope) == tuple) or (type(telescope) == list):
-        return EarthLocation(lat=telescope[0]*u.deg, lon=telescope[1]*u.deg, 
-                             height=telescope[2]*u.m)
-
-
-
-
-
-
-def write_correction(freq_array,corr,filename):
-    np.savetxt(filename, list(zip(freq_array,corr.real,corr.imag)))
-
-
-def numeric_integration(times,RMs,freq_array):
-    """Numerical integration of the time-varying ionospheric polariation 
-    modulation. Testing has shown that numerical integration is accurate 
-    to better than 1% accuracy except where depolarization is extreme (>99%).
-    """
-
-    from scipy.integrate import simps
-    l2_arr=(C/freq_array)**2
-    z=np.exp(2.j*np.outer(l2_arr,RMs))
-    
-    #Scipy's numerical integrators can't handle complex numbers, so the
-    # integral needs to be broken into real and complex components.
-    real=simps(z.real,times,axis=1)
-    imag=simps(z.imag,times,axis=1)
-    corr=(real+1.j*imag)/(times[-1]-times[0])
-    return corr
-    
-
-def check_numeric_problems(RMs, freq_array,corr):
-    """Checks for conditions that might cause numeric instability in the
-    correction, and warns the user if there might be concerns.
-    """
-    import warnings
-    
-    #Check for large jumps in RM/polarization angle between steps.
-    #These can cause the numeric integrator to not catch angle wraps.
-    longest_l2=(C/np.min(freq_array))**2
-    max_deltaRM=np.max(np.diff(RMs))
-    max_delta_polangle=longest_l2*max_deltaRM  #in radians
-    if max_delta_polangle > 0.5:
-        warnings.warn(("\nLarge variations in RM between points, which may "
-                       "introduce numerical errors.\n"
-                       "Consider trying a smaller timestep."))
-    
-    #Warn about very low values of the correction (very strong depolarization)
-    # as these can probably not be corrected reliably.
-    if np.min(np.abs(corr)) < 0.02:
-        warnings.warn(("\nExtreme depolarization predicted (>98%). "
-                       "Corrected polarization will almost certainly not "
-                       "be trustworthy in affected channels."))
-    elif np.min(np.abs(corr)) < 0.1:
-        warnings.warn(("\nSignificant depolarization predicted (>90%). "
-                       "Errors in corrected polarization are likely to be "
-                       "very large in some channels."))
-    
-    
 
 
 def calculate_correction(start_time, end_time, freq_array, telescope_location,
                          ra,dec, timestep=600.,ionexPath='./IONEXdata/'):
     """Calculate the ionospheric FR correction, as a function of frequency,
     for a given observation (time, location, target direction).
-    Inputs:
-        start_time (string readable by astropy.time.Time): starting
-                    time of observation
-        end_time (string readable by astropy.time.Time): ending
-                    time of observation
-            example time string: '2010-01-02T00:00:00'
-        freq_array (array-like): vector of channel frequencies (in Hz)
+    
+    Args:
+        start_time (string readable by astropy.time.Time): 
+            Starting time of observation.
+            Example time string\: '2010-01-02T00:00:00'
+        end_time (string readable by astropy.time.Time): 
+            ending time of observation.
+        freq_array (array-like): 
+            vector of channel frequencies (in Hz)
         telescope_location (astropy.coordinates EarthLocation or string):
             location of telescope, or name of telescope known to 
             get_telescope_coordinates() function.
-        ra (float): right ascension of observation center (in deg, J2000)
-        dec (float): declination of observation center (in deg, J2000)
+        ra (float): 
+            right ascension of observation center (in deg, J2000)
+        dec (float): 
+            declination of observation center (in deg, J2000)
         timestep (float): time in seconds between ionosphere FR estimates
-    Returns: times (array): vector of times (in MJD seconds) of each 
-                            ionospheric RM calculation
-             RMs (array): vector of RM values computed for each time step
-             correction (array): vector containing the (complex) ionospheric
-                polarization (Theta) for each frequency channel.
+        
+    Returns:
+        tuple containing
+        
+        - times (array): 
+            vector of times (in MJD seconds) of each ionospheric RM calculation   
+        - RMs (array): 
+            vector of RM values computed for each time step  
+        - correction (array) 
+            vector containing the (complex) ionospheric polarization (Theta) 
+            for each frequency channel.  
+    
     """
 
     #If necessary, convert telescope name into telescope location object:    
@@ -150,8 +82,104 @@ def calculate_correction(start_time, end_time, freq_array, telescope_location,
     #Compute the time-integrated correction. 
     correction=numeric_integration(times,RMs,freq_array)
     
+    check_numeric_problems(RMs, freq_array,correction)
+    
+    
     return times,RMs, correction
     
+
+
+def numeric_integration(times,RMs,freq_array):
+    """Numerical integration of the time-varying ionospheric polariation 
+    modulation. Testing has shown that numerical integration is accurate 
+    to better than 1% accuracy except where depolarization is extreme (>99%).
+    
+    """
+
+    from scipy.integrate import simps
+    l2_arr=(C/freq_array)**2
+    z=np.exp(2.j*np.outer(l2_arr,RMs))
+    
+    #Scipy's numerical integrators can't handle complex numbers, so the
+    # integral needs to be broken into real and complex components.
+    real=simps(z.real,times,axis=1)
+    imag=simps(z.imag,times,axis=1)
+    corr=(real+1.j*imag)/(times[-1]-times[0])
+    return corr
+    
+
+
+def check_numeric_problems(RMs, freq_array,corr):
+    """Checks for conditions that might cause numeric instability in the
+    correction, and warns the user if there might be concerns.
+    
+    Specifically, checks for extreme jumps in polarization angle between
+    timesteps (will cause integration errorrs), 
+    and for extreme depolarization (high liklihood of large errors).
+    
+    """
+    import warnings
+    
+    #Check for large jumps in RM/polarization angle between steps.
+    #These can cause the numeric integrator to not catch angle wraps.
+    longest_l2=(C/np.min(freq_array))**2
+    max_deltaRM=np.max(np.diff(RMs))
+    max_delta_polangle=longest_l2*max_deltaRM  #in radians
+    if max_delta_polangle > 0.5:
+        warnings.warn(("\nLarge variations in RM between points, which may "
+                       "introduce numerical errors.\n"
+                       "Consider trying a smaller timestep."))
+    
+    #Warn about very low values of the correction (very strong depolarization)
+    # as these can probably not be corrected reliably.
+    if np.min(np.abs(corr)) < 0.02:
+        warnings.warn(("\nExtreme depolarization predicted (>98%). "
+                       "Corrected polarization will almost certainly not "
+                       "be trustworthy in affected channels."))
+    elif np.min(np.abs(corr)) < 0.1:
+        warnings.warn(("\nSignificant depolarization predicted (>90%). "
+                       "Errors in corrected polarization are likely to be "
+                       "very large in some channels."))
+    
+    
+
+
+def get_telescope_coordinates(telescope):
+    """Return the astropy.coordinates EarthLocation object associated
+    with the position of the telescope.
+    The input must be either a string with the name of a pre-programmed
+    telescope a 3-component tuple with the latitude [deg], longitude [deg], 
+    and height [m], or an EarthLocation object.
+    
+    Known telescopes:
+        * ASKAP
+    
+    """
+    if type(telescope) == EarthLocation: #Pass EarthLocations through without processing
+        return telescope
+    elif type(telescope) == str: #Hardcoded coordinates for some telescopes.
+        if telescope == 'ASKAP':
+            lat = -1*26+42/60+15/3600 #degree
+            long = +1*116+39/60+32/3600 # degree
+            height = 381.0 #
+        else:
+            raise Exception("Telescope name not recognized.")
+        return EarthLocation(lat=lat*u.deg, lon=long*u.deg, height=height*u.m)
+    elif (type(telescope) == tuple) or (type(telescope) == list):
+        return EarthLocation(lat=telescope[0]*u.deg, lon=telescope[1]*u.deg, 
+                             height=telescope[2]*u.m)
+
+
+
+
+
+
+def write_correction(freq_array,corr,filename):
+    """Saves predicted correction to a text file."""
+    np.savetxt(filename, list(zip(freq_array,corr.real,corr.imag)))
+
+
+
     
 
 def generate_plots(times,RMs,corr,freq_array,position=None,savename=None):
@@ -160,6 +188,7 @@ def generate_plots(times,RMs,corr,freq_array,position=None,savename=None):
     If savename contains a string it will save the plots to that filename,
     otherwise the plots are not saved.
     If position ([ra,dec]) is given, it will be printed above the plots.
+    
     """
     from matplotlib import pyplot as plt
     from matplotlib import dates as mdates
@@ -188,9 +217,10 @@ def generate_plots(times,RMs,corr,freq_array,position=None,savename=None):
 
 
 
-def main():
-    """When invoked from the command line, generate ionospheric RM predictions
-    and save the predictions, as a function of frequency, to a text file.
+def predict():
+    """Wrapper for command line interface. Gets command line arguments,
+    calculates correction, and saves correction and/or figure if specified.
+    
     """
     import argparse
     descStr = """
@@ -312,7 +342,7 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
+    predict()
 
 
 

@@ -11,10 +11,47 @@ from astropy.io import fits as pf
 
 
 
+def apply_correction_to_files(Qfile,Ufile,correctionfile,Qoutfile,Uoutfile,
+                              overwrite=False):
+    """ This function combines all the individual steps needed to apply a 
+    correction to a set of Q and U FITS cubes and save the results.
+    The user should supply the paths to all the files as specified.
+    The output files can probably(?) be the same as the input files, if you
+    want to overwrite the existing files.
+    
+    """
+    
+    #Get all data:
+    frequencies,correction=read_prediction(correctionfile)
+    Qdata,Udata,header=readData(Qfile,Ufile)
+    
+    #Checks for data consistency.
+    if (Qdata.shape != Udata.shape):
+        raise Exception("Q and U files don't have same dimensions.")
+    if Qdata.shape[0] != correction.size:
+        raise Exception("Correction file does not have same number of channels as FITS cube.")
+    #Currently this doesn't actually check that the frequencies are the same,
+    #just that the number of channels is the same. Should this be a more
+    #strict check?
+
+
+    #Apply correction
+    Qcorr,Ucorr=correct_cubes(Qdata,Udata,correction)
+    
+    #Save results
+    write_corrected_cubes(Qoutfile,Uoutfile,Qcorr,Ucorr,header,
+                          overwrite=overwrite)
 
 
 
-def read_correction(filename):
+def read_prediction(filename):
+    """Read in frequencies and ionospheric predictions from text file.
+    
+    Returns:
+        frequencies (array),  
+        correction (array, complex)
+        
+    """
     (frequencies,real,imag)=np.genfromtxt(filename,unpack=True)
     correction=real+1.j*imag
     return frequencies, correction
@@ -25,6 +62,7 @@ def find_freq_axis(header):
     Input: header: a Pyfits header object.
     Returns the axis number (as recorded in the FITS file, **NOT** in numpy ordering.)
     Returns 0 if the frequency axis cannot be found.
+    
     """
     freq_axis=0 #Default for 'frequency axis not identified'
     #Check for frequency axes. Because I don't know what different formatting
@@ -41,14 +79,14 @@ def find_freq_axis(header):
 
 
 def readData(Qfilename,Ufilename):
-    """
-    Open the Stokes Q and U input cubes (from the supplied 
+    """Open the Stokes Q and U input cubes (from the supplied 
     file names) and return data-access variables and the header. 
     Axes are re-ordered so that frequency is first, beyond that the number
     and ordering of axes doesn't matter.
     Uses the memmap functionality so that data isn't read into data; variables
     are just handles to access the data on disk.
     Returns the header from the Q file, the U file's header is ignored.
+    
     """    
     
     hdulistQ=pf.open(Qfilename,memmap=True)
@@ -73,9 +111,9 @@ def readData(Qfilename,Ufilename):
 
 
 def write_corrected_cubes(Qoutputname,Uoutputname,Qcorr,Ucorr,header,overwrite=False):
-    """
-    Write the corrected Q and U data to FITS files. Copies the supplied header,
-    adding a note to the history saying that the correction was applied.
+    """    Write the corrected Q and U data to FITS files. Copies the supplied 
+    header, adding a note to the history saying that the correction was applied.
+    
     """
     output_header=header.copy()
     output_header.add_history('Corrected for ionospheric Faraday rotation using ionosphereFR_correct.')
@@ -95,14 +133,14 @@ def write_corrected_cubes(Qoutputname,Uoutputname,Qcorr,Ucorr,header,overwrite=F
 
 
 def correct_cubes(Qdata,Udata,correction):
-    """
-    Applies the ionospheric Faraday rotation correction to the Stokes Q/U
+    """Applies the ionospheric Faraday rotation correction to the Stokes Q/U
     data, derotating the polarization angle and renormalizing to remove
     depolarization. Note that this will amplify the noise present in the data,
-    particularly if the depolarization is large (|corr| is small).
+    particularly if the depolarization is large (\|corr\| is small).
     Note that the 'correction' variable is the effect of the ionosphere 
     (Theta, in the derivation), so the correction process is to divide by this 
     variable to produce the output cubes.
+    
     """
     
     Pdata=Qdata+1.j*Udata #Input complex polarization
@@ -116,43 +154,15 @@ def correct_cubes(Qdata,Udata,correction):
     return Qcorr,Ucorr
 
 
-def apply_correction_to_files(Qfile,Ufile,correctionfile,Qoutfile,Uoutfile,overwrite=False):
-    """
-    This function combines all the individual steps needed to apply a 
-    correction to a set of Q and U FITS cubes and save the results.
-    The user should supply the paths to all the files as specified.
-    The output files can probably(?) be the same as the input files, if you
-    want to overwrite the existing files.
-    """
-    
-    #Get all data:
-    frequencies,correction=read_correction(correctionfile)
-    Qdata,Udata,header=readData(Qfile,Ufile)
-    
-    #Checks for data consistency.
-    if (Qdata.shape != Udata.shape):
-        raise Exception("Q and U files don't have same dimensions.")
-    if Qdata.shape[0] != correction.size:
-        raise Exception("Correction file does not have same number of channels as FITS cube.")
-    #Currently this doesn't actually check that the frequencies are the same,
-    #just that the number of channels is the same. Should this be a more
-    #strict check?
-
-
-    #Apply correction
-    Qcorr,Ucorr=correct_cubes(Qdata,Udata,correction)
-    
-    #Save results
-    write_corrected_cubes(Qoutfile,Uoutfile,Qcorr,Ucorr,header,overwrite=overwrite)
 
 
 
 
-def main():
-    """
-    When invoked from the command line, parse the input options to get the
+def command_line():
+    """When invoked from the command line, parse the input options to get the
     filenames and other parameters, then invoke apply_correction_to_files
     to run all the steps and save the output cubes.
+    
     """
     
     import argparse
@@ -199,6 +209,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    command_line()
 
 
