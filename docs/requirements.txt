@@ -1,0 +1,4 @@
+numpy >= 1.18
+scipy >= 1.4
+astropy >= 4.0
+pyephem >= 9.99

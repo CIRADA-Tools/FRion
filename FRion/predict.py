@@ -10,8 +10,13 @@ change in polarization angle, and the effective depolarization.
 """
 
 
+try:
+    import RMextract.getRM as RME
+except:
+    print(("RMextract not found. Predictions will not be possible.", 
+           "Continuing to import, to support documentation building."))
 
-import RMextract.getRM as RME
+
 from astropy.time import Time,TimeDelta
 import numpy as np
 from astropy.coordinates import EarthLocation,SkyCoord
