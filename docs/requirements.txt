@@ -4,4 +4,3 @@ astropy >= 4.0
 pyephem >= 9.99
 Sphinx > 2.4
 sphinx-rtd-theme > 0.5
--e git+https://github.com/Cameron-Van-Eck/FRion/archive/main.zip
