@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Tools for applying ionospheric Faraday rotation corrections to images and
+Functions for applying ionospheric Faraday rotation corrections to images and
 image cubes. This file contains the functions needed to apply the correction
 to data cubes (either in memory, or in FITS files.)
+
+The complex polarization (Q + iU) is divided by the predicted ionospheric
+modulation to produce corrected values that should have the effect of the 
+ionosphere removed. These can then be saved to new Stokes Q and U FITS files.
+
+The current version of this code does not do anything specific to handle
+very large FITS files gracefully. It may not perform efficiently when file 
+sizes are comparable to the amount of available RAM.
+
 """
 
 import numpy as np
@@ -11,32 +20,38 @@ from astropy.io import fits as pf
 
 
 
-def apply_correction_to_files(Qfile,Ufile,correctionfile,Qoutfile,Uoutfile,
+def apply_correction_to_files(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
                               overwrite=False):
     """ This function combines all the individual steps needed to apply a 
     correction to a set of Q and U FITS cubes and save the results.
     The user should supply the paths to all the files as specified.
-    The output files can probably(?) be the same as the input files, if you
-    want to overwrite the existing files.
+    
+    Args:
+        Qfile (str): filename of uncorrected Stokes Q FITS cube
+        Ufile (str): filename of uncorrected Stokes U FITS cube
+        predictionfile (str): path to ionospheric modulation prediction (from predict tools)
+        Qoutfile (str): filename for corrected Stokes Q FITS cube.
+        Uoutfile (str): filename for corrected Stokes U FITS cube.
+        overwrite (bool): overwrite Stokes Q/U files if they already exist? [False]
     
     """
     
     #Get all data:
-    frequencies,correction=read_prediction(correctionfile)
+    frequencies,theta=read_prediction(predictionfile)
     Qdata,Udata,header=readData(Qfile,Ufile)
     
     #Checks for data consistency.
     if (Qdata.shape != Udata.shape):
         raise Exception("Q and U files don't have same dimensions.")
-    if Qdata.shape[0] != correction.size:
-        raise Exception("Correction file does not have same number of channels as FITS cube.")
+    if Qdata.shape[0] != theta.size:
+        raise Exception("Prediction file does not have same number of channels as FITS cube.")
     #Currently this doesn't actually check that the frequencies are the same,
     #just that the number of channels is the same. Should this be a more
     #strict check?
 
 
     #Apply correction
-    Qcorr,Ucorr=correct_cubes(Qdata,Udata,correction)
+    Qcorr,Ucorr=correct_cubes(Qdata,Udata,theta)
     
     #Save results
     write_corrected_cubes(Qoutfile,Uoutfile,Qcorr,Ucorr,header,
@@ -48,13 +63,16 @@ def read_prediction(filename):
     """Read in frequencies and ionospheric predictions from text file.
     
     Returns:
-        frequencies (array),  
-        correction (array, complex)
+        tuple containing
+        
+        -frequencies (array): frequencies of each channel (Hz); 
+
+        -theta (array): ionospheric modulation for each channel
         
     """
     (frequencies,real,imag)=np.genfromtxt(filename,unpack=True)
-    correction=real+1.j*imag
-    return frequencies, correction
+    theta=real+1.j*imag
+    return frequencies, theta
 
 
 def find_freq_axis(header):
@@ -114,9 +132,17 @@ def write_corrected_cubes(Qoutputname,Uoutputname,Qcorr,Ucorr,header,overwrite=F
     """    Write the corrected Q and U data to FITS files. Copies the supplied 
     header, adding a note to the history saying that the correction was applied.
     
+    Inputs:
+        Qoutputname (str): filename to write corrected Stoke Q data to.
+        Uoutputname (str): filename to write corrected Stoke U data to.
+        Qcorr (array): corrected Stokes Q data
+        Ucorr (array): corrected Stokes U data
+        header: Astropy FITS header object that describes the data
+        overwrite (bool): overwrite Stokes Q/U files if they already exist? [False]
+        
     """
     output_header=header.copy()
-    output_header.add_history('Corrected for ionospheric Faraday rotation using ionosphereFR_correct.')
+    output_header.add_history('Corrected for ionospheric Faraday rotation using FRion.')
 
     #Get data back to original axis order, if necessary.
     N_dim=output_header['NAXIS'] #Get number of axes
@@ -132,22 +158,24 @@ def write_corrected_cubes(Qoutputname,Uoutputname,Qcorr,Ucorr,header,overwrite=F
     
 
 
-def correct_cubes(Qdata,Udata,correction):
+def correct_cubes(Qdata,Udata,theta):
     """Applies the ionospheric Faraday rotation correction to the Stokes Q/U
     data, derotating the polarization angle and renormalizing to remove
     depolarization. Note that this will amplify the noise present in the data,
-    particularly if the depolarization is large (\|corr\| is small).
-    Note that the 'correction' variable is the effect of the ionosphere 
-    (Theta, in the derivation), so the correction process is to divide by this 
-    variable to produce the output cubes.
+    particularly if the depolarization is large (\|theta\| is small).
+    
+    Inputs:
+        Qdata (array): uncorrected Stokes Q data, frequency axis first
+        Udata (array): uncorrected Stokes U data, frequency axis first
+        theta (1D array): ionospheric modulation, per frequency
     
     """
     
     Pdata=Qdata+1.j*Udata #Input complex polarization
     arrshape=np.array(Pdata.shape)  #the correction needs the same number of
     arrshape[:]=1                   #axes as the input data
-    arrshape[0]=correction.size     #(but they can all be degenerate)
-    Pcorr=np.true_divide(Pdata,np.reshape(correction,arrshape))
+    arrshape[0]=theta.size     #(but they can all be degenerate)
+    Pcorr=np.true_divide(Pdata,np.reshape(theta,arrshape))
     Qcorr=Pcorr.real
     Ucorr=Pcorr.imag
     
@@ -170,7 +198,7 @@ def command_line():
     descStr = """
     Apply correction for ionospheric Faraday rotation to Stokes Q and U FITS
     cubes. Requires the file names for the input cubes, output cubes, and the
-    correction file (which contains the ionospheric effect per channel 
+    prediction file (which contains the ionospheric modulation per channel 
     in the cubes).
     """
 
@@ -180,8 +208,8 @@ def command_line():
                         help="FITS cube containing (uncorrected) Stokes Q data.")
     parser.add_argument("fitsU",metavar="fitsU",
                         help="FITS cube containing (uncorrected) Stokes U data.")
-    parser.add_argument("correctionFile",metavar="correctionFile",
-                        help="File containing ionospheric correction to be applied.")
+    parser.add_argument("predictionfile",metavar="predictionfile",
+                        help="File containing ionospheric prediction to be applied.")
     parser.add_argument("outQ",metavar="Qcorrected",
                         help="Output filename for corrected Stokes Q cube.")
     parser.add_argument("outU",metavar="Ucorrected",
@@ -198,7 +226,7 @@ def command_line():
         raise Exception("Stokes U file not found.")
     
     #Pass file names into do-everything function.
-    apply_correction_to_files(args.fitsQ,args.fitsU,args.correctionFile,
+    apply_correction_to_files(args.fitsQ,args.fitsU,args.predictionfile,
                               args.outQ,args.outU,overwrite=args.overwrite)
 
 

@@ -7,16 +7,20 @@ observation, then performs the time-integration to work out the effective
 change in polarization angle, and the effective depolarization (together, 
 called the ionospheric *modulation*, which is called Theta in the derivation).
 
+The ionospheric prediction is currently derived from RMExtract
+(https://github.com/lofar-astron/RMextract/). 
+Other ionosphere RM codes are available (ionFR, ALBUS) are available, but 
+RMextract was selected for its ease of install and use.
+
+RMextract relies on external maps of Total Electron Content (TEC). Currently
+the CODG TEC maps are used (this is default for RMextract), but other data
+sources are available. Changing TEC sources would require changing the 
+RMExtract call in calculate_modulation().
+
 """
 
 
-try:
-    import RMextract.getRM as RME
-except:
-    print(("RMextract not found. Predictions will not be possible.", 
-           "Continuing to import, to support documentation building."))
-
-
+import RMextract.getRM as RME
 from astropy.time import Time,TimeDelta
 import numpy as np
 from astropy.coordinates import EarthLocation,SkyCoord
