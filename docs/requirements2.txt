@@ -1,0 +1,2 @@
+#RMextract needs to be installed after numpy, because of issues with it's setup.py.
+git+https://github.com/lofar-astron/RMextract.git
