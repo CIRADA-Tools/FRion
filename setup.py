@@ -15,7 +15,7 @@ REQUIRES_PYTHON = '>=3.5.0'
 VERSION = '1.0'
 DOWNLOAD_URL = 'https://github.com/Cameron-Van-Eck/FRion/archive/refs/heads/main.zip'
 
-    REQUIRED = [
+REQUIRED = [
     'numpy', 'astropy', 'pyephem'
     ]
 
