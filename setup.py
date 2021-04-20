@@ -16,7 +16,7 @@ VERSION = '1.0'
 DOWNLOAD_URL = 'https://github.com/Cameron-Van-Eck/FRion/archive/refs/heads/main.zip'
 
 REQUIRED = [
-    'numpy', 'astropy', 'pyephem'
+    'numpy', 'astropy', 'pyephem',
     ]
 
 extras_require={}
@@ -40,8 +40,8 @@ setup(
     download_url=DOWNLOAD_URL,
     packages=['FRion'],
     entry_points={
-        'console_scripts': ['frion_predict=predict:predict',
-                            'frion_correct=correct:command_line'],
+        'console_scripts': ['frion_predict=FRion.predict:predict',
+                            'frion_correct=FRion.correct:command_line'],
     },
     install_requires=REQUIRED,
     include_package_data=True,

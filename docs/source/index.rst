@@ -60,7 +60,13 @@ In the mean time, it can be installed by downloading the code from
 `this link <https://github.com/Cameron-Van-Eck/FRion/archive/refs/heads/main.zip>`_, 
 unzipping, moving the code directory somewhere convenient, 
 going into the code directory, then running ``pip install -e .``.
-This will install the package to the Python packages directory. It should then
+This will install the package to the Python packages directory.
+
+RMextract must be installed seperately (it has issues with pip -- it will crash
+if numpy is not already installed). This can be done be running 
+``pip install -r docs/requirements2.txt``.
+
+It should then
 be importable using the statements ``import FRion.predict as predict`` and
 ``import FRion.correct as correct``.
 

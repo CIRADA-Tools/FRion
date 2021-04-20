@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 """
-Tools for predicting time-integrated ionospheric Faraday rotation corrections.
-Uses RMextract package to get time-dependent corrections for a given 
+Functions for predicting time-integrated ionospheric Faraday rotation effects.
+Uses RMextract package to get time-dependent ionospheric RMs for a given 
 observation, then performs the time-integration to work out the effective
-change in polarization angle, and the effective depolarization.
-
+change in polarization angle, and the effective depolarization (together, 
+called the ionospheric *modulation*, which is called Theta in the derivation).
 
 """
 
@@ -26,9 +26,9 @@ from FRion.correct import find_freq_axis
 C = 2.99792458e8 # Speed of light [m/s]
 
 
-def calculate_correction(start_time, end_time, freq_array, telescope_location,
+def calculate_modulation(start_time, end_time, freq_array, telescope_location,
                          ra,dec, timestep=600.,ionexPath='./IONEXdata/'):
-    """Calculate the ionospheric FR correction, as a function of frequency,
+    """Calculate the ionospheric FR modulation, as a function of frequency,
     for a given observation (time, location, target direction).
     
     Args:
@@ -55,7 +55,7 @@ def calculate_correction(start_time, end_time, freq_array, telescope_location,
         
         -RMs (array): vector of RM values computed for each time step  
         
-        -correction (array) vector containing the (complex) ionospheric polarization (Theta) 
+        -theta (array) vector containing the (complex) ionospheric polarization
         for each frequency channel.  
     
     """
@@ -83,13 +83,13 @@ def calculate_correction(start_time, end_time, freq_array, telescope_location,
     times=predictions['times']
     RMs=np.squeeze(predictions['RM']['st1'])
     
-    #Compute the time-integrated correction. 
-    correction=numeric_integration(times,RMs,freq_array)
+    #Compute the time-integrated change in polarization. 
+    theta=numeric_integration(times,RMs,freq_array)
     
-    check_numeric_problems(RMs, freq_array,correction)
+    check_numeric_problems(RMs, freq_array,theta)
     
     
-    return times,RMs, correction
+    return times,RMs, theta
     
 
 
@@ -98,6 +98,12 @@ def numeric_integration(times,RMs,freq_array):
     modulation. Testing has shown that numerical integration is accurate 
     to better than 1% accuracy except where depolarization is extreme (>99%).
     
+    Args:
+        times (array): ionosphere sampling times (in MJD seconds)
+        RMs (array): ionospheric RMs at each time (in rad/m^2)
+        freq_array (array): channel frequencies (in Hz)
+    
+    Returns: array: time-integrated ionospheric modulation per channel.
     """
 
     from scipy.integrate import simps
@@ -108,19 +114,23 @@ def numeric_integration(times,RMs,freq_array):
     # integral needs to be broken into real and complex components.
     real=simps(z.real,times,axis=1)
     imag=simps(z.imag,times,axis=1)
-    corr=(real+1.j*imag)/(times[-1]-times[0])
-    return corr
+    theta=(real+1.j*imag)/(times[-1]-times[0])
+    return theta
     
 
 
-def check_numeric_problems(RMs, freq_array,corr):
+def check_numeric_problems(RMs, freq_array,theta):
     """Checks for conditions that might cause numeric instability in the
-    correction, and warns the user if there might be concerns.
+    time-integration, and warns the user if there might be concerns.
     
     Specifically, checks for extreme jumps in polarization angle between
     timesteps (will cause integration errorrs), 
     and for extreme depolarization (high liklihood of large errors).
     
+    Args:
+        RMs (array): ionospheric RMs per time step
+        freq_array (array): channel frequencies (in Hz)
+        theta (array): ionospheric modulation per channel.
     """
     import warnings
     
@@ -134,13 +144,13 @@ def check_numeric_problems(RMs, freq_array,corr):
                        "introduce numerical errors.\n"
                        "Consider trying a smaller timestep."))
     
-    #Warn about very low values of the correction (very strong depolarization)
+    #Warn about very low values of theta (very strong depolarization)
     # as these can probably not be corrected reliably.
-    if np.min(np.abs(corr)) < 0.02:
+    if np.min(np.abs(theta)) < 0.02:
         warnings.warn(("\nExtreme depolarization predicted (>98%). "
                        "Corrected polarization will almost certainly not "
                        "be trustworthy in affected channels."))
-    elif np.min(np.abs(corr)) < 0.1:
+    elif np.min(np.abs(theta)) < 0.1:
         warnings.warn(("\nSignificant depolarization predicted (>90%). "
                        "Errors in corrected polarization are likely to be "
                        "very large in some channels."))
@@ -178,21 +188,35 @@ def get_telescope_coordinates(telescope):
 
 
 
-def write_correction(freq_array,corr,filename):
-    """Saves predicted correction to a text file."""
-    np.savetxt(filename, list(zip(freq_array,corr.real,corr.imag)))
+def write_modulation(freq_array,theta,filename):
+    """Saves predicted ionospheric modulation to a text file.
+    
+    Args:
+        freq_array (array): channel frequencies (in Hz)
+        theta (array): ionospheric (complex) modulation at each frequency
+        filename (str): file path to save data to.
+"""
+    np.savetxt(filename, list(zip(freq_array,theta.real,theta.imag)))
 
 
 
     
 
-def generate_plots(times,RMs,corr,freq_array,position=None,savename=None):
+def generate_plots(times,RMs,theta,freq_array,position=None,savename=None):
     """Makes a figure with two plots: the RM variation over time, 
-    and the (modulus of the) correction as a function of frequency.
+    and the (modulus of the) modulation as a function of frequency.
     If savename contains a string it will save the plots to that filename,
     otherwise the plots are not saved.
     If position ([ra,dec]) is given, it will be printed above the plots.
     
+    Args:
+        times (array): ionosphere sampling times (in MJD seconds)
+        RMs (array): ionospheric RMs at each time (in rad/m^2)
+        theta (array): ionospheric (complex) modulation at each frequency
+        freq_array (array): channel frequencies (in Hz)
+        position (list): [ra, dec] in degrees, left blank if not supplied.
+        savename (str): File path to save plot to; if 'screen' will send to display.
+
     """
     from matplotlib import pyplot as plt
     from matplotlib import dates as mdates
@@ -207,7 +231,7 @@ def generate_plots(times,RMs,corr,freq_array,position=None,savename=None):
     ax1.xaxis.set_major_formatter(formatter)
     ax1.set_ylabel('$\phi_\mathrm{ion}$ [rad m$^{-2}$]')
     
-    ax2.plot(freq_array,np.abs(corr),'k.')
+    ax2.plot(freq_array,np.abs(theta),'k.')
     ax2.set_xlabel('Frequency [Hz]')
     ax2.set_ylabel('|$\Theta(\lambda^2)$|')
     if position is not None:
@@ -223,7 +247,8 @@ def generate_plots(times,RMs,corr,freq_array,position=None,savename=None):
 
 def predict():
     """Wrapper for command line interface. Gets command line arguments,
-    calculates correction, and saves correction and/or figure if specified.
+    calculates ionospheric effects, and saves modulation and/or figure if 
+    specified.
     
     """
     import argparse
@@ -254,8 +279,8 @@ def predict():
     parser.add_argument('-p',dest='pointing',nargs=2,type=float,default=None,
                         metavar=('RA','DEC'),
                         help="Pointing center: RA[deg], Dec[deg]")
-    parser.add_argument("-s", dest='savefile',type=str,default=None,metavar='CORRFILE',
-                        help="Filename to save correction data to.")
+    parser.add_argument("-s", dest='savefile',type=str,default=None,metavar='POLFILE',
+                        help="Filename to save ionosphere data to.")
     parser.add_argument("-S", dest='savefig',type=str,default=None,metavar='FIGFILE',
                         help="Filename to save the plots to. Entering 'screen' plots to the screen.")
     parser.add_argument("--timestep",dest='timestep',default=600.,type=float,
@@ -333,14 +358,14 @@ def predict():
         print("Missing parameters:",missing_parms)
         raise Exception("Cannot continue without those parameters.")
     
-    times,RMs,correction=calculate_correction(start_time, end_time, freq_arr, telescope,
+    times,RMs,theta=calculate_modulation(start_time, end_time, freq_arr, telescope,
                          ra,dec, timestep=args.timestep,ionexPath='./IONEXdata/')
     
     if args.savefile is not None:
-        write_correction(freq_arr,correction,args.savefile)
+        write_modulation(freq_arr,theta,args.savefile)
 
     if args.savefig is not None:
-        generate_plots(times,RMs,correction,freq_arr,position=[ra,dec],savename=args.savefig)
+        generate_plots(times,RMs,theta,freq_arr,position=[ra,dec],savename=args.savefig)
     
     
     
