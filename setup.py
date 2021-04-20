@@ -15,14 +15,8 @@ REQUIRES_PYTHON = '>=3.5.0'
 VERSION = '1.0'
 DOWNLOAD_URL = 'https://github.com/Cameron-Van-Eck/FRion/archive/refs/heads/main.zip'
 
-on_rtd = os.environ.get('READTHEDOCS') == 'True'
-if on_rtd == 'True':  #ReadTheDocs can't install RMextract, so this is a shortcut to make it work.
     REQUIRED = [
     'numpy', 'astropy', 'pyephem'
-    ]
-else:
-    REQUIRED = [
-    'numpy', 'astropy', 'RMextract', 'pyephem'
     ]
 
 extras_require={}
