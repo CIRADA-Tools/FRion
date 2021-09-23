@@ -64,7 +64,9 @@ This will install the package to the Python packages directory.
 
 RMextract must be installed seperately (it has issues with pip -- it will crash
 if numpy is not already installed). This can be done be running 
-``pip install -r docs/requirements2.txt``.
+``pip install -r docs/requirements2.txt``. If this install fails, try
+adding the `` --no-deps`` option; RMextract has an optional dependency on
+casacore, and pip something has problems installing python-casacore.
 
 It should then
 be importable using the statements ``import FRion.predict as predict`` and
