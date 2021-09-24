@@ -77,7 +77,6 @@ casacore is not required: if casacore is not installed, RMextract will use the e
 automatically with FRion.
 
 
-
 It should then
 be importable using the statements ``import FRion.predict as predict`` and
 ``import FRion.correct as correct``, or runable on the terminal with the commands
