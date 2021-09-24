@@ -50,6 +50,13 @@ be accessed through the following terminal commands:
 Use the ``-h`` flag to get detailed usage instructions for each.
 
 
+Usage
+------------
+
+
+
+
+
 Installation
 ------------
 
@@ -62,13 +69,19 @@ unzipping, moving the code directory somewhere convenient,
 going into the code directory, then running ``pip install -e .``.
 This will install the package to the Python packages directory.
 
-RMextract must be installed seperately (it has issues with pip -- it will crash
-if numpy is not already installed). This can be done be running 
-``pip install -r docs/requirements2.txt``.
+RMextract must be installed seperately it. It is now available through pip, 
+using ``pip install RMextract``, but this will try to install casacore as a dependency. 
+casacore can be difficult to install on some systems, so if this causes a problem
+you can install it without casacore by using ``pip install --no-deps RMextract``.
+casacore is not required: if casacore is not installed, RMextract will use the ephem package instead, which installs
+automatically with FRion.
+
+
 
 It should then
 be importable using the statements ``import FRion.predict as predict`` and
-``import FRion.correct as correct``.
+``import FRion.correct as correct``, or runable on the terminal with the commands
+``frion_predict`` and ``frion_correct``.
 
 
 

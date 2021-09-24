@@ -17,7 +17,7 @@ sizes are comparable to the amount of available RAM.
 
 import numpy as np
 from astropy.io import fits as pf
-
+import os
 
 
 def apply_correction_to_files(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
@@ -169,6 +169,9 @@ def correct_cubes(Qdata,Udata,theta):
         Udata (array): uncorrected Stokes U data, frequency axis first
         theta (1D array): ionospheric modulation, per frequency
     
+    Returns:
+        Qcorr (array): corrected Stokes Q data, same axis ordering
+        Ucorr (array): corrected Stokes U data, same axis ordering
     """
     
     Pdata=Qdata+1.j*Udata #Input complex polarization
@@ -181,6 +184,131 @@ def correct_cubes(Qdata,Udata,theta):
     
     return Qcorr,Ucorr
 
+
+
+# def extract_spectrum(cube,freq_axis,x,y):
+#     """Extracts a 1D spectrum from a cube. The cube can be 3 or 4 dimensional,
+#     with the frequency axis in either the 3rd or 4th axis (FITS ordering).
+#     Assumes the cube is in the PyFITS ordering (reversed axes).
+
+#     Inputs:
+#         cube (array): cube array, in PyFITS axis ordering.
+#         freq_axis (int): number of frequency axis (FIS ordering)
+#         x (int): x coordinate of spectrum to extract (NAXIS1 element)
+#         y (int): y coordinate of spectrum to extract (NAXIS2 element)
+#     """
+#     N_dim=cube.ndim
+    
+#     if N_dim == 4 and freq_axis=4:
+    #MAY NOT NEED?
+        
+    
+
+
+def apply_correction_large_cube(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
+                              overwrite=False):
+    """Functions as apply_correction_to_files, but for files too large to
+    hold in memory. Combines the correct_cubes() and write_corrected_cubes()
+    steps into a single function so that it can operate on smaller pieces
+    of data at one time.
+    
+    This function combines all the individual steps needed to apply a 
+    correction to a set of Q and U FITS cubes and save the results.
+    The user should supply the paths to all the files as specified.
+    This function is less flexible in terms of axis ordering: it assumes two
+    spatial axes, and a frequency axis in position 3 or 4.
+    
+    Args:
+        Qfile (str): filename of uncorrected Stokes Q FITS cube
+        Ufile (str): filename of uncorrected Stokes U FITS cube
+        predictionfile (str): path to ionospheric modulation prediction (from predict tools)
+        Qoutfile (str): filename for corrected Stokes Q FITS cube.
+        Uoutfile (str): filename for corrected Stokes U FITS cube.
+        overwrite (bool): overwrite Stokes Q/U files if they already exist? [False]
+    
+    """
+
+
+    #Get all data:
+    frequencies,theta=read_prediction(predictionfile)
+
+    hdulistQ=pf.open(Qfile,memmap=True)
+    header=hdulistQ[0].header
+    Qdata=hdulistQ[0].data
+    hdulistU=pf.open(Ufile,memmap=True)
+    Udata=hdulistU[0].data
+    
+    
+    N_dim=header['NAXIS'] #Get number of axes
+    freq_axis=find_freq_axis(header) 
+    #Checks for data consistency.
+    if (Qdata.shape != Udata.shape):
+        raise Exception("Q and U files don't have same dimensions.")
+    if Qdata.shape[N_dim-freq_axis] != theta.size:
+        raise Exception("Prediction file does not have same number of channels as FITS cube.")
+    #Currently this doesn't actually check that the frequencies are the same,
+    #just that the number of channels is the same. Should this be a more
+    #strict check?
+    if Qdata.ndim != 3 and Qdata.ndim != 4:
+        raise Exception("Cube does not have 3 or 4 axes; only these are supported for large files.")
+    
+
+    #Add correction to header history
+    output_header=header.copy()
+    output_header.add_history('Corrected for ionospheric Faraday rotation using FRion.')
+
+
+
+    #Deal with any existing output files:
+    if (os.path.isfile(Qoutfile) or os.path.isfile(Uoutfile)) and not overwrite:
+        raise Exception("Output file(s) aready exist.")
+    if os.path.isfile(Qoutfile) and overwrite:
+        os.remove(Qoutfile)
+    if os.path.isfile(Uoutfile) and overwrite:
+        os.remove(Uoutfile)
+        
+    #Create large blank files. This seems to produce file size complaints 
+    #sometimes, but those seem harmless so far.
+    shape = tuple(output_header['NAXIS{0}'.format(ii)] for ii in range(1, output_header['NAXIS']+1))
+    
+    output_header.tofile(Qoutfile)
+    with open(Qoutfile, 'rb+') as fobj:
+        fobj.seek(len(output_header.tostring()) + (np.product(shape) * np.abs(output_header['BITPIX']//8)) - 1)
+        fobj.write(b'\0')
+
+    output_header.tofile(Uoutfile)
+    with open(Uoutfile, 'rb+') as fobj:
+        fobj.seek(len(output_header.tostring()) + (np.product(shape) * np.abs(output_header['BITPIX']//8)) - 1)
+        fobj.write(b'\0')
+
+
+    Qout_hdu=pf.open(Qoutfile,mode='update',memmap=True)
+    Uout_hdu=pf.open(Uoutfile,mode='update',memmap=True)
+
+    Npix=output_header['NAXIS1']*output_header['NAXIS2']
+
+    for i in range(Npix):
+        x=i % output_header['NAXIS1'] 
+        y=i // output_header['NAXIS1']
+        if N_dim==4:
+            Pdata=Qdata[:,:,y,x]+1.j*Udata[:,:,y,x] #Input complex polarization
+        elif N_dim==3:
+            Pdata=Qdata[:,y,x]+1.j*Udata[:,y,x] #Input complex polarization
+        arrshape=np.array(Pdata.shape)  #the correction needs the same number of
+        arrshape[:]=1                   #axes as the input data
+        arrshape[N_dim-freq_axis]=theta.size     #(but they can all be degenerate)
+        Pcorr=np.true_divide(Pdata,np.reshape(theta,arrshape))
+        if N_dim==4:
+            Qout_hdu[0].data[:,:,y,x]=Pcorr.real
+            Uout_hdu[0].data[:,:,y,x]=Pcorr.imag
+        elif N_dim==3:
+            Qout_hdu[0].data[:,y,x]=Pcorr.real
+            Uout_hdu[0].data[:,y,x]=Pcorr.imag
+
+    Qout_hdu.flush()
+    Uout_hdu.flush()
+    Qout_hdu.close()
+    Uout_hdu.close()
 
 
 
@@ -216,6 +344,8 @@ def command_line():
                         help="Output filename for corrected Stokes U cube.")
     parser.add_argument("-o",dest="overwrite",action="store_true",
                         help="Overwrite exising output files? [False]")
+    parser.add_argument("-L",dest="large",action="store_true",
+                        help="Use large-file mode? (Reduced memory footprint) [False]")    
 
     args = parser.parse_args()
 
@@ -225,8 +355,13 @@ def command_line():
     if not os.path.isfile(args.fitsU):
         raise Exception("Stokes U file not found.")
     
-    #Pass file names into do-everything function.
-    apply_correction_to_files(args.fitsQ,args.fitsU,args.predictionfile,
+    #Pass file names into do-everything function (either basic or large-file, as
+    #set by user.
+    if args.large:
+        apply_correction_large_cube(args.fitsQ,args.fitsU,args.predictionfile,
+                              args.outQ,args.outU,overwrite=args.overwrite)        
+    else:
+        apply_correction_to_files(args.fitsQ,args.fitsU,args.predictionfile,
                               args.outQ,args.outU,overwrite=args.overwrite)
 
 
