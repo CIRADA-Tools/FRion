@@ -18,7 +18,8 @@ sizes are comparable to the amount of available RAM.
 import numpy as np
 from astropy.io import fits as pf
 import os
-
+import sys
+from math import floor
 
 def apply_correction_to_files(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
                               overwrite=False):
@@ -186,23 +187,19 @@ def correct_cubes(Qdata,Udata,theta):
 
 
 
-# def extract_spectrum(cube,freq_axis,x,y):
-#     """Extracts a 1D spectrum from a cube. The cube can be 3 or 4 dimensional,
-#     with the frequency axis in either the 3rd or 4th axis (FITS ordering).
-#     Assumes the cube is in the PyFITS ordering (reversed axes).
+def progress(width, percent):
+    """
+    Print a progress bar to the terminal.
+    Stolen from Mike Bell.
+    """
 
-#     Inputs:
-#         cube (array): cube array, in PyFITS axis ordering.
-#         freq_axis (int): number of frequency axis (FIS ordering)
-#         x (int): x coordinate of spectrum to extract (NAXIS1 element)
-#         y (int): y coordinate of spectrum to extract (NAXIS2 element)
-#     """
-#     N_dim=cube.ndim
-    
-#     if N_dim == 4 and freq_axis=4:
-    #MAY NOT NEED?
-        
-    
+    marks = floor(width * (percent / 100.0))
+    spaces = floor(width - marks)
+    loader = '  [' + ('=' * int(marks)) + (' ' * int(spaces)) + ']'
+    sys.stdout.write("%s %d%%\r" % (loader, percent))
+    if percent >= 100:
+        sys.stdout.write("\n")
+    sys.stdout.flush()
 
 
 def apply_correction_large_cube(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
@@ -304,6 +301,8 @@ def apply_correction_large_cube(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
         elif N_dim==3:
             Qout_hdu[0].data[:,y,x]=Pcorr.real
             Uout_hdu[0].data[:,y,x]=Pcorr.imag
+        if x == 0:
+            progress(40, i/Npix*100)
 
     Qout_hdu.flush()
     Uout_hdu.flush()
