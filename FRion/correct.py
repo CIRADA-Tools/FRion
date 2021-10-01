@@ -229,23 +229,24 @@ def apply_correction_large_cube(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
     #Get all data:
     frequencies,theta=read_prediction(predictionfile)
 
-    hdulistQ=pf.open(Qfile,memmap=False)
+    hdulistQ=pf.open(Qfile,memmap=True)
     header=hdulistQ[0].header
-    hdulistU=pf.open(Ufile,memmap=False)
+    Qdata=hdulistQ[0].data
+    hdulistU=pf.open(Ufile,memmap=True)
+    Udata=hdulistU[0].data
     
     
     N_dim=header['NAXIS'] #Get number of axes
     freq_axis=find_freq_axis(header) 
     #Checks for data consistency.
-    for i in range(N_dim):
-        if hdulistQ[0].header['NAXIS'+str(i+1)] != hdulistU[0].header['NAXIS'+str(i+1)]:
-            raise Exception("Q and U files don't have same dimensions.")
-    if header['NAXIS'+str(freq_axis)] != theta.size:
+    if (Qdata.shape != Udata.shape):
+        raise Exception("Q and U files don't have same dimensions.")
+    if Qdata.shape[N_dim-freq_axis] != theta.size:
         raise Exception("Prediction file does not have same number of channels as FITS cube.")
     #Currently this doesn't actually check that the frequencies are the same,
     #just that the number of channels is the same. Should this be a more
     #strict check?
-    if N_dim != 3 and N_dim != 4:
+    if Qdata.ndim != 3 and Qdata.ndim != 4:
         raise Exception("Cube does not have 3 or 4 axes; only these are supported for large files.")
     
 
@@ -287,9 +288,9 @@ def apply_correction_large_cube(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
         x=i % output_header['NAXIS1'] 
         y=i // output_header['NAXIS1']
         if N_dim==4:
-            Pdata=hdulistQ[0].section[:,:,y,x]+1.j*hdulistU[0].section[:,:,y,x] #Input complex polarization
+            Pdata=Qdata[:,:,y,x]+1.j*Udata[:,:,y,x] #Input complex polarization
         elif N_dim==3:
-            Pdata=hdulistQ[0].section[:,y,x]+1.j*hdulistU[0].section[:,y,x] #Input complex polarization
+            Pdata=Qdata[:,y,x]+1.j*Udata[:,y,x] #Input complex polarization
         arrshape=np.array(Pdata.shape)  #the correction needs the same number of
         arrshape[:]=1                   #axes as the input data
         arrshape[N_dim-freq_axis]=theta.size     #(but they can all be degenerate)
