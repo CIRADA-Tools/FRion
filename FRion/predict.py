@@ -20,7 +20,14 @@ RMExtract call in calculate_modulation().
 """
 
 
-import RMextract.getRM as RME
+try:
+    import RMextract.getRM as RME
+except:
+    #This is the easiest solution to the documentation problem:
+    #This code needs to be importable when RMextract isn't installed, for 
+    #ReadTheDocs to work. Getting RMextract to install properly in RTD is too
+    #much work, so this is my workaround.
+    print('Cannot import RMextract. Continuing import, but will fail if called.')
 from astropy.time import Time,TimeDelta
 import numpy as np
 from astropy.coordinates import EarthLocation,SkyCoord
