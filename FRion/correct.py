@@ -9,9 +9,11 @@ The complex polarization (Q + iU) is divided by the predicted ionospheric
 modulation to produce corrected values that should have the effect of the 
 ionosphere removed. These can then be saved to new Stokes Q and U FITS files.
 
-The current version of this code does not do anything specific to handle
+The main functions below do not do anything specific to handle
 very large FITS files gracefully. It may not perform efficiently when file 
-sizes are comparable to the amount of available RAM.
+sizes are comparable to the amount of available RAM. An alternative mode,
+`apply_correction_large_cube()`, has been developed to reduce the memory 
+footprint required.
 
 """
 

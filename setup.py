@@ -41,6 +41,7 @@ setup(
     packages=['FRion'],
     entry_points={
         'console_scripts': ['frion_predict=FRion.predict:predict',
+                            'frion_timeseries=FRion.predict:timeseries',
                             'frion_correct=FRion.correct:command_line'],
     },
     install_requires=REQUIRED,
@@ -56,5 +57,5 @@ setup(
         'Topic :: Scientific/Engineering :: Astronomy',
     ],
     maintainer='Cameron Van Eck',
-    maintainer_email='cameron.van.eck@dunlap.utoronto.ca',
+    maintainer_email='cameron.van.eck@utoronto.ca',
 )

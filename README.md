@@ -1,6 +1,6 @@
 # Ionospheric Faraday rotation corrections.
 
-Scripts for calculating and applying ionospheric Faraday rotation corrections for radio polarization data. Specifically, time-independent corrections.
+Scripts for calculating and applying ionospheric Faraday rotation corrections for radio polarization data, primarily time-independent corrections.
 
 **Full documentation can be found [here](https://frion.readthedocs.io/en/latest/).**
 
