@@ -8,5 +8,8 @@ The core underlying tool is [RMextract](https://github.com/lofar-astron/RMextrac
 
 This is being written for the POSSUM pipeline, but with hopes that it can be general enough to apply to other data sets.
 
+This packages original author, and maintainer as of Mar 2022, is Cameron Van Eck (cameron.van.eck (at) utoronto.ca).
+Please submit bug reports and feature requests fo the GitHub issues page, and feel free to email me with questions or comments.
 
-Cameron Van Eck, April 2021
+More information on the Canadian Initiative for Radio Astronomy Data Analysis (CIRADA) can be found at cirada.ca.
+

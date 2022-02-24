@@ -22,7 +22,7 @@ FRion focuses on time-averaged effects of the ionosphere, for cases where data
 gets time-averaged before an ionospheric correction can be applied, but also
 has functions to produce time-series of the ionospheric Faraday rotation.
 
-This package uses `RMextract <https://github.com/lofar-astron/RMextract/>`_ 
+This package uses `RMExtract <https://github.com/lofar-astron/RMextract/>`_ 
 for the underlying ionospheric calculations. Users interested in alternative
 ionospheric Faraday rotation packages can look at
 `ionFR <https://github.com/csobey/ionFR>`_,
@@ -57,20 +57,19 @@ Use the ``-h`` flag to get detailed usage instructions for each.
 Installation
 ------------
 
-FRion will be released on PyPi once it is complete and tested, which will
-enable easy installation through pip.
+FRion has been released on PyPi, so it can be installed with pip as ``pip install FRion``.
 
-In the mean time, it can be installed by downloading the code from 
+Alternatively, it can be installed by downloading the code from 
 `this link <https://github.com/Cameron-Van-Eck/FRion/archive/refs/heads/main.zip>`_, 
 unzipping, moving the code directory somewhere convenient, 
 going into the code directory, then running ``pip install -e .``.
 This will install the package to the Python packages directory.
 
-RMextract must be installed seperately it. It is now available through pip, 
+RMExtract must be installed seperately. It is now available through pip, 
 using ``pip install RMextract``, but this will try to install casacore as a dependency. 
-casacore can be difficult to install on some systems, so if this causes a problem
-you can install it without casacore by using ``pip install --no-deps RMextract``.
-casacore is not required: if casacore is not installed, RMextract will use the ephem package instead, which installs
+casacore can be difficult to install on some systems, so my reccomenadation is
+to install it without casacore by using ``pip install --no-deps RMextract``.
+casacore is not required for RMExtract: if casacore is not installed, RMExtract will use the pyephem package instead, which installs
 automatically with FRion.
 
 
