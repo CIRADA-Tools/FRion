@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 
 """
-Functions for predicting ionospheric Faraday rotation effects, both 
+Functions for predicting ionospheric Faraday rotation effects, both
 time-dependent and time-averaged.
-Uses RMextract package to get time-dependent ionospheric RMs for a given 
+Uses RMextract package to get time-dependent ionospheric RMs for a given
 observation, then performs the time-integration to work out the effective
-change in polarization angle, and the effective depolarization (together, 
+change in polarization angle, and the effective depolarization (together,
 called the ionospheric *modulation*, which is called Theta in the derivation).
 
 The ionospheric prediction is currently derived from RMExtract
-(https://github.com/lofar-astron/RMextract/). 
-Other ionosphere RM codes are available (ionFR, ALBUS) are available, but 
+(https://github.com/lofar-astron/RMextract/).
+Other ionosphere RM codes are available (ionFR, ALBUS) are available, but
 RMextract was selected for its ease of install and use.
 
 RMextract relies on external maps of Total Electron Content (TEC). Currently
 the CODG TEC maps are used (this is default for RMextract), but other data
-sources are available. Changing TEC sources would require changing the 
+sources are available. Changing TEC sources would require changing the
 RMExtract call in get_RM(). If anyone knows how to invoke RMExtract with
 alternative TEC sources, please consider contacting me or submitting a pull
 request to add that functionality.
@@ -23,7 +23,7 @@ request to add that functionality.
 Two command line functions are available and documented below:
     - predict(): time-averaged Faraday rotation.
     - timeseries(): time-dependent Faraday rotation.
-    
+
 
 """
 
@@ -32,7 +32,7 @@ try:
     import RMextract.getRM as RME
 except:
     #This is the easiest solution to the documentation problem:
-    #This code needs to be importable when RMextract isn't installed, for 
+    #This code needs to be importable when RMextract isn't installed, for
     #ReadTheDocs to work. Getting RMextract to install properly in RTD is too
     #much work, so this is my workaround.
     print('Cannot import RMextract. Continuing import, but will fail if called.')
@@ -47,22 +47,22 @@ C = 2.99792458e8 # Speed of light [m/s]
 
 
 def predict():
-    """Wrapper for command line interface, for time-averaging mode. 
-    Gets command line arguments, calculates ionospheric effects, and saves 
+    """Wrapper for command line interface, for time-averaging mode.
+    Gets command line arguments, calculates ionospheric effects, and saves
     modulation and/or figure if specified.
-    
+
     If the package is installed, it can be called as frion_predict,
     otherwise as python predict.py
-    
+
     Call with the -h flag to see command line options.
     """
     import argparse
     descStr = """
     Calculate ionospheric Faraday rotation and predict time-integrated effect
     as a function of frequency.
-    Can determine the frequency, location, direction, and observation time 
+    Can determine the frequency, location, direction, and observation time
     parameters from a supplied FITS cube or PSRFITS file, if it has the correct
-    keywords, otherwise from those parameters must be supplied on the command 
+    keywords, otherwise from those parameters must be supplied on the command
     line.
     """
 
@@ -100,19 +100,19 @@ def predict():
     telescope=None
     ra=None
     dec=None
-    
+
 
     #If a FITS file is present, try to fill in any missing keywords.
     #But since FITS headers can be very different, it may be that not all
     #keywords can be found.
     if args.fits is not None:
         start_time,end_time,freq_arr,telescope,ra,dec=get_parms_from_FITS(args.fits)
-            
+
     #Any parametrs taken from FITS header can be overridden by manual inputs:
     if args.times is not None:
         start_time=Time(args.times[0])
         end_time=Time(args.times[1])
-        
+
     if args.freq_parms is not None:
         freq_arr=np.arange(args.freq_parms[0],args.freq_parms[1],args.freq_parms[2])
 
@@ -120,11 +120,11 @@ def predict():
         telescope = get_telescope_coordinates(args.telescope_name)
     if args.telescope_coords is not None:
         telescope = get_telescope_coordinates(args.telescope_coords)
-    
+
     if args.pointing is not None:
         ra=args.pointing[0]
         dec=args.pointing[1]
-    
+
     #Check that all parameters are set:
     missing_parms=[]
     if (start_time is None): missing_parms.append('Start time')
@@ -136,10 +136,10 @@ def predict():
     if len(missing_parms) > 0:
         print("\n\nMissing parameters:",missing_parms,'\n')
         raise Exception("Cannot continue without parameters listed above.")
-    
+
     times,RMs,theta=calculate_modulation(start_time, end_time, freq_arr, telescope,
                          ra,dec, timestep=args.timestep,ionexPath='./IONEXdata/')
-    
+
     if args.savefile is not None:
         write_modulation(freq_arr,theta,args.savefile)
 
@@ -149,113 +149,113 @@ def predict():
 
 def calculate_modulation(start_time, end_time, freq_array, telescope_location,
                          ra,dec, timestep=600.,ionexPath='./IONEXdata/'):
-    """Calculate the ionospheric FR modulation (time-averaged effect), 
+    """Calculate the ionospheric FR modulation (time-averaged effect),
     as a function of frequency, for a given observation (time, location, target direction).
-    
-    
-    
+
+
+
     Args:
-        start_time (astropy.time Time, or string readable by astropy.time Time): 
+        start_time (astropy.time Time, or string readable by astropy.time Time):
             Starting time of observation.
             Example time string: '2010-01-02T00:00:00'
-        end_time (astropy.time.Time, or string readable by astropy.time.Time): 
+        end_time (astropy.time.Time, or string readable by astropy.time.Time):
             ending time of observation.
-        freq_array (array-like, either floats or Astropy Quantity): 
+        freq_array (array-like, either floats or Astropy Quantity):
             vector of channel frequencies (in Hz)
         telescope_location (astropy.coordinates EarthLocation or string):
-            location of telescope, or name of telescope known to 
+            location of telescope, or name of telescope known to
             get_telescope_coordinates() function.
-        ra (astropy.coordinates Angle, astropy.units Quantity, or float): 
+        ra (astropy.coordinates Angle, astropy.units Quantity, or float):
             right ascension of observation center (if float: in deg, J2000)
-        dec (astropy.coordinates Angle, astropy.units Quantity, or float): 
+        dec (astropy.coordinates Angle, astropy.units Quantity, or float):
             declination of observation center (if float: in deg, J2000)
         timestep (astropy.time TimeDelta, astropy.units Quantity, or float):
             time between ionosphere FR estimates. If float, time must be in seconds.
         ionexPath (str, default='./IONEXdata/'): path to download IONEX files to
             for ionosphere calculations.
-        
+
     Returns:
         tuple containing
-        
-        -times (astropy Time array): vector of times of each ionospheric RM calculation   
-        
-        -RMs (array): vector of RM values computed for each time step  
-        
+
+        -times (astropy Time array): vector of times of each ionospheric RM calculation
+
+        -RMs (array): vector of RM values computed for each time step
+
         -theta (array) vector containing the (complex) ionospheric polarization
-        for each frequency channel.  
-    
+        for each frequency channel.
+
     """
-    
+
     #Convert frequencies to have units if needed.
     if type(freq_array) == astropy.units.quantity.Quantity:
         frequencies=freq_array
-    else: 
+    else:
         frequencies=freq_array*u.Hz
 
     #Calculation of the time-dependent RMs.
     times,RMs=get_RM(start_time, end_time, telescope_location,
-                         ra,dec, timestep=600.,ionexPath='./IONEXdata/')
+                         ra,dec, timestep=timestep,ionexPath=ionexPath)
 
-    
-    #Compute the time-integrated change in polarization. 
+
+    #Compute the time-integrated change in polarization.
     theta=numeric_integration(times.mjd*86400.,RMs,frequencies.to(u.Hz).value)
-    
+
     #Verify that we are not in a regime where numerical instabilities might occur.
     check_numeric_problems(RMs, frequencies.to(u.Hz).value,theta)
-    
-    
+
+
     return times,RMs, theta
-    
+
 
 def get_RM(start_time, end_time, telescope_location,
                          ra,dec, timestep=600.,ionexPath='./IONEXdata/'):
     """
-    Calculate the ionospheric Faraday rotation as a function of time, 
+    Calculate the ionospheric Faraday rotation as a function of time,
     for a given observation (time, location, target direction).
-    
+
     Args:
-        start_time (astropy.time Time, or string readable by astropy.time Time): 
+        start_time (astropy.time Time, or string readable by astropy.time Time):
             Starting time of observation.
             Example time string: '2010-01-02T00:00:00'
-        end_time (astropy.time.Time, or string readable by astropy.time.Time): 
+        end_time (astropy.time.Time, or string readable by astropy.time.Time):
             ending time of observation.
         telescope_location (astropy.coordinates EarthLocation or string):
-            location of telescope, or name of telescope known to 
+            location of telescope, or name of telescope known to
             get_telescope_coordinates() function.
-        ra (astropy.coordinates Angle, astropy.units Quantity, or float): 
+        ra (astropy.coordinates Angle, astropy.units Quantity, or float):
             right ascension of observation center (if float: in deg, J2000)
-        dec (astropy.coordinates Angle, astropy.units Quantity, or float): 
+        dec (astropy.coordinates Angle, astropy.units Quantity, or float):
             declination of observation center (if float: in deg, J2000)
         timestep (astropy.time TimeDelta, astropy.units Quantity, or float):
             time between ionosphere FR estimates. If float, time must be in seconds.
         ionexPath (str, default='./IONEXdata/'): path to download IONEX files to
             for ionosphere calculations.
-        
+
     Returns:
         tuple containing
-        
-        -times (astropy Time array): vector of times of each ionospheric RM calculation   
-        
-        -RMs (array): vector of RM values computed for each time step  
-    
+
+        -times (astropy Time array): vector of times of each ionospheric RM calculation
+
+        -RMs (array): vector of RM values computed for each time step
+
     """
-    #If necessary, convert telescope name into telescope location object:    
+    #If necessary, convert telescope name into telescope location object:
     if type(telescope_location) != EarthLocation:
         telescope_location=get_telescope_coordinates(telescope_location)
 
     #RMextract wants time ranges in MJD seconds:
     timerange=[Time(start_time).mjd*86400.0,
-               Time(end_time).mjd*86400.0] 
+               Time(end_time).mjd*86400.0]
 
     #Extract telescope coordinates into expected format (geodetic x,y,z):
     telescope_coordinates=[telescope_location.x.value,
                            telescope_location.y.value,
                            telescope_location.z.value]
-    
+
     #Handle all forms of angle input:
     if type(ra) == float or type(ra) == int:
         ra_angle=Angle(ra,'deg')
-    elif type(ra) == astropy.units.quantity.Quantity: 
+    elif type(ra) == astropy.units.quantity.Quantity:
         ra_angle=Angle(ra)
     elif type(ra) == astropy.coordinates.angles.Angle:
         ra_angle=ra
@@ -265,10 +265,10 @@ def get_RM(start_time, end_time, telescope_location,
 
     if type(dec) == float or type(dec) == int:
         dec_angle=Angle(dec,'deg')
-    elif type(dec) == astropy.units.quantity.Quantity: 
+    elif type(dec) == astropy.units.quantity.Quantity:
         dec_angle=Angle(dec)
     elif type(dec) == astropy.coordinates.angles.Angle:
-        dec_angle=dec        
+        dec_angle=dec
     else:
         raise Exception("""Dec input object type not recognized.
                         Only astropy.coordinates Angle, astropy.units Quantity, or float (in deg) allowed.""")
@@ -283,14 +283,14 @@ def get_RM(start_time, end_time, telescope_location,
     else:
         raise Exception("""Timestep input object type not recognized.
                         Only astropy.time TimeDelta, astropy.units Quantity, or float (in seconds) allowed.""")
-        
-    
-    
+
+
+
     #Get RMExtract to generate it's RM predictions
-    predictions=RME.getRM(ionexPath=ionexPath, 
-                          radec=[ra_angle.rad,dec_angle.rad], 
-                          timestep=timestep_Delta.sec, 
-                          timerange = timerange, 
+    predictions=RME.getRM(ionexPath=ionexPath,
+                          radec=[ra_angle.rad,dec_angle.rad],
+                          timestep=timestep_Delta.sec,
+                          timerange = timerange,
                           stat_positions=[telescope_coordinates,])
     #predictions dictionary contains STEC, Bpar, BField, AirMass, elev, azimuth
     #  RM, times, timestep, station_names, stat_pos, flags, reference_time
@@ -301,46 +301,46 @@ def get_RM(start_time, end_time, telescope_location,
     return times, RMs
 
 def numeric_integration(times,RMs,freq_array):
-    """Numerical integration of the time-varying ionospheric polariation 
-    modulation. Testing has shown that numerical integration is accurate 
+    """Numerical integration of the time-varying ionospheric polariation
+    modulation. Testing has shown that numerical integration is accurate
     to better than 1% accuracy except where depolarization is extreme (>99%).
-    
+
     Args:
         times (array): ionosphere sampling times (in MJD seconds, as used in RMextract)
         RMs (array): ionospheric RMs at each time (in rad/m^2)
         freq_array (array): channel frequencies (in Hz)
-    
+
     Returns: array: time-integrated ionospheric modulation per channel.
     """
 
     from scipy.integrate import simps
     l2_arr=(C/freq_array)**2
     z=np.exp(2.j*np.outer(l2_arr,RMs))
-    
+
     #Scipy's numerical integrators can't handle complex numbers, so the
     # integral needs to be broken into real and complex components.
     real=simps(z.real,times,axis=1)
     imag=simps(z.imag,times,axis=1)
     theta=(real+1.j*imag)/(times[-1]-times[0])
     return theta
-    
+
 
 
 def check_numeric_problems(RMs, freq_array,theta):
     """Checks for conditions that might cause numeric instability in the
     time-integration, and warns the user if there might be concerns.
-    
+
     Specifically, checks for extreme jumps in polarization angle between
-    timesteps (will cause integration errorrs), 
+    timesteps (will cause integration errorrs),
     and for extreme depolarization (high liklihood of large errors).
-    
+
     Args:
         RMs (array): ionospheric RMs per time step
         freq_array (array): channel frequencies (in Hz)
         theta (array): ionospheric modulation per channel.
     """
     import warnings
-    
+
     #Check for large jumps in RM/polarization angle between steps.
     #These can cause the numeric integrator to not catch angle wraps.
     longest_l2=(C/np.min(freq_array))**2
@@ -350,7 +350,7 @@ def check_numeric_problems(RMs, freq_array,theta):
         warnings.warn(("\nLarge variations in RM between points, which may "
                        "introduce numerical errors.\n"
                        "Consider trying a smaller timestep."))
-    
+
     #Warn about very low values of theta (very strong depolarization)
     # as these can probably not be corrected reliably.
     if np.min(np.abs(theta)) < 0.02:
@@ -361,13 +361,13 @@ def check_numeric_problems(RMs, freq_array,theta):
         warnings.warn(("\nSignificant depolarization predicted (>90%). "
                        "Errors in corrected polarization are likely to be "
                        "very large in some channels."))
-    
-    
-    
+
+
+
 def write_modulation(freq_array,theta,filename):
     """Saves predicted ionospheric modulation to a text file.
     File has two columns, whitespace-delimited.
-    
+
     Args:
         freq_array (array): channel frequencies (in Hz)
         theta (array): ionospheric (complex) modulation at each frequency
@@ -382,15 +382,15 @@ def get_telescope_coordinates(telescope):
     """Return the astropy.coordinates EarthLocation object associated
     with the position of the telescope.
     The input must be either a string with the name of a telescope listed in
-    Astropy's sites list 
+    Astropy's sites list
     (https://github.com/astropy/astropy-data/blob/gh-pages/coordinates/sites.json),
     an EarthLocation object (which is passed through unchanged),
-    or a 3-component tuple with the latitude [deg], longitude [deg], 
+    or a 3-component tuple with the latitude [deg], longitude [deg],
     and height [m].
-    
+
     Since ASKAP is not yet listed in the Astropy sites list, it's position is
     manually coded in as a temporary measure.
-    
+
     """
     if type(telescope) == EarthLocation: #Pass EarthLocations through without processing
         return telescope
@@ -403,21 +403,21 @@ def get_telescope_coordinates(telescope):
             return EarthLocation.of_site(telescope)
         return EarthLocation(lat=lat*u.deg, lon=long*u.deg, height=height*u.m)
     elif (type(telescope) == tuple) or (type(telescope) == list):
-        return EarthLocation(lat=telescope[0]*u.deg, lon=telescope[1]*u.deg, 
+        return EarthLocation(lat=telescope[0]*u.deg, lon=telescope[1]*u.deg,
                              height=telescope[2]*u.m)
 
 
 
 
-    
+
 
 def generate_plots(times,RMs,theta,freq_array,position=None,savename=None):
-    """Makes a figure with two plots: the RM variation over time, 
+    """Makes a figure with two plots: the RM variation over time,
     and the (modulus of the) modulation as a function of frequency.
     If savename contains a string it will save the plots to that filename,
     otherwise the plots are not saved.
     If position ([ra,dec]) is given, it will be printed above the plots.
-    
+
     Args:
         times (astropy Time array): ionosphere sampling times
         RMs (array): ionospheric RMs at each time (in rad/m^2)
@@ -430,8 +430,8 @@ def generate_plots(times,RMs,theta,freq_array,position=None,savename=None):
     from matplotlib import pyplot as plt
     from matplotlib import dates as mdates
     plot_times=times.plot_date
-    
-    
+
+
     fig,(ax1,ax2)=plt.subplots(2,1,figsize=(8,8))
     ax1.plot_date(plot_times,RMs,fmt='k.')
     locator=mdates.AutoDateLocator(minticks=3,maxticks=7)
@@ -439,16 +439,16 @@ def generate_plots(times,RMs,theta,freq_array,position=None,savename=None):
     ax1.xaxis.set_major_locator(locator)
     ax1.xaxis.set_major_formatter(formatter)
     ax1.set_ylabel('$\phi_\mathrm{ion}$ [rad m$^{-2}$]')
-    
+
     ax2.plot(freq_array,np.abs(theta),'k.')
     ax2.set_xlabel('Frequency [Hz]')
     ax2.set_ylabel('|$\Theta(\lambda^2)$|')
     if position is not None:
         ax1.set_title("RA: {:.2f}°, Dec: {:.2f}°".format(position[0],position[1]))
-    
+
     if savename is not None:
         if savename == "screen":
-            plt.show()    
+            plt.show()
         else:
             plt.savefig(savename,bbox_inches='tight')
 
@@ -461,11 +461,11 @@ def get_parms_from_FITS(filename):
     and frequencies) from a FITS file, possibly a PSRFITS file.
     If the missing keywords are not found in the FITS file, they are left blank
     and the user
-    
+
     Args:
         filename (str): path to the FITS file.
-        
-    Returns: 
+
+    Returns:
         start_time
         end_time
         freq_arr
@@ -477,7 +477,7 @@ def get_parms_from_FITS(filename):
     hdulist=pf.open(filename)
     header=hdulist[0].header
 
-    
+
     start_time=None
     end_time=None
     freq_arr=None
@@ -485,7 +485,7 @@ def get_parms_from_FITS(filename):
     ra=None
     dec=None
 
-    #PSRFITS files have a different format, so split prpcesing depending on 
+    #PSRFITS files have a different format, so split prpcesing depending on
     #PSRFITS vs FITS image:
     if 'FITSTYPE' in header.keys() and header['FITSTYPE']=='PSRFITS':
         #PRSFITS code adapted from example by David Kaplan.
@@ -496,7 +496,7 @@ def get_parms_from_FITS(filename):
             start_time=Time(float(header['STT_IMJD']) +
                         (float(header['STT_SMJD'])+
                          float(header['STT_OFFS']))/float(86400),
-                        format='mjd')        
+                        format='mjd')
 
             try:
                 end_time = start_time + np.sum(hdulist['SUBINT'].data['TSUBINT']) * u.s
@@ -516,10 +516,10 @@ def get_parms_from_FITS(filename):
             ra=Angle(hdulist[0].header['RA'],unit='hour')
         if 'DEC' in header.keys():
             dec=Angle(hdulist[0].header['DEC'],unit='deg')
-        
+
         if 'OBSFREQ' in header.keys() and 'OBSNCHAN' in header.keys() and 'OBSBW' in header.keys():
             chan_bw=header['OBSBW']/header['OBSNCHAN']
-            
+
             startchan= header['OBSFREQ'] - (header['OBSNCHAN']/2 - 1)*chan_bw
             freq_arr=np.arange(header['OBSNCHAN'])*chan_bw+startchan
 
@@ -530,7 +530,7 @@ def get_parms_from_FITS(filename):
             start_time=Time(header['DATE-OBS'])
         if 'DATE-OBS' in header.keys() and 'DURATION' in header.keys():
             end_time=Time(header['DATE-OBS'])+TimeDelta(header['DURATION'],format="sec")
-        
+
         #For coordinates, the code will always use the middle pixel to derive
         #the RA and Dec. Assumes position coordinates are in first 2 axes.
         if 'RA' in header['CTYPE1']:
@@ -547,9 +547,9 @@ def get_parms_from_FITS(filename):
 
         if 'TELESCOP' in header.keys():
             telescope=header['TELESCOP']
-                
+
         freq_axis=str(find_freq_axis(header))
-        if freq_axis != '0':  
+        if freq_axis != '0':
             chan0=header['CRVAL'+freq_axis]-header['CDELT'+freq_axis]*(header['CRPIX'+freq_axis]-1)
             chan_final=chan0+(header['NAXIS'+freq_axis]-1)*header['CDELT'+freq_axis]
             freq_arr=np.linspace(chan0,chan_final,header['NAXIS'+freq_axis])
@@ -558,26 +558,26 @@ def get_parms_from_FITS(filename):
 
 
 
-    
-    
-    
+
+
+
 
 def timeseries():
     """
     Wrapper for command line interface, for time-series mode.
-    Gets command line arguments, feeds them into RMextract, and saves the 
+    Gets command line arguments, feeds them into RMextract, and saves the
     output to the file if specified or prints to terminal.
-    
+
     If the package is installed, it can be called as frion_timeseries,
     otherwise as python -c 'import FRion.predict; predict.timeseries()'
-    
+
     Call with the -h flag to see command line options.
     """
     import argparse
     descStr = """
     Calculate ionospheric Faraday rotation as a function of time.
-    Can determine the observation time, direction, and location parameters 
-    from a supplied FITS cube or PSRFITS file, if it has the correct keywords, 
+    Can determine the observation time, direction, and location parameters
+    from a supplied FITS cube or PSRFITS file, if it has the correct keywords,
     otherwise from those parameters must be supplied on the command line.
     """
 
@@ -614,29 +614,29 @@ def timeseries():
     telescope=None
     ra=None
     dec=None
-    
+
 
     #If a FITS file is present, try to fill in any missing keywords.
     #But since FITS headers can be very different, it may be that not all
     #keywords can be found.
     if args.fits is not None:
         start_time,end_time,freq_arr,telescope,ra,dec=get_parms_from_FITS(args.fits)
-            
+
     #Any parametrs taken from FITS header can be overridden by manual inputs:
     if args.times is not None:
         start_time=Time(args.times[0])
         end_time=Time(args.times[1])
-        
+
 
     if args.telescope_name is not None:
         telescope = get_telescope_coordinates(args.telescope_name)
     if args.telescope_coords is not None:
         telescope = get_telescope_coordinates(args.telescope_coords)
-    
+
     if args.pointing is not None:
         ra=args.pointing[0]
         dec=args.pointing[1]
-    
+
     #Check that all parameters are set:
     missing_parms=[]
     if (start_time is None): missing_parms.append('Start time')
@@ -647,10 +647,10 @@ def timeseries():
     if len(missing_parms) > 0:
         print("\n\nMissing parameters:",missing_parms,'\n')
         raise Exception("Cannot continue without parameters listed above.")
-    
+
     times,RMs=get_RM(start_time, end_time, telescope,
                          ra,dec, timestep=args.timestep,ionexPath='./IONEXdata/')
-    
+
     if args.savefile is not None:
         write_timeseries(times,RMs,args.savefile,timeformat=args.timeformat)
     else:
@@ -671,7 +671,7 @@ def write_timeseries(times,RMs,filename,timeformat='mjd'):
     """Saves the predicted ionospheric RMs as a function of time to a text file.
     File has two columns, whitespace-delimited (Be aware that some time formats
     will add whitespace to the time column.)
-    
+
     Args:
         times (astropy Time array): ionosphere sampling times
         RMs (array): ionospheric RMs at each time (in rad/m^2)
@@ -680,7 +680,7 @@ def write_timeseries(times,RMs,filename,timeformat='mjd'):
             Possible values can be found at
             https://docs.astropy.org/en/stable/time/index.html#time-format
             default is 'mjd' (e.g., ‘51544.0’).
-    
+
     """
     fout = open(filename, "w")
     for tm, rm in zip(times.to_value(timeformat),RMs):
@@ -691,12 +691,12 @@ def write_timeseries(times,RMs,filename,timeformat='mjd'):
 
 
 def plot_timeseries(times,RMs,position=None,savename=None):
-    """Makes a figure plotting the RM variation over time, 
+    """Makes a figure plotting the RM variation over time,
     If savename contains a string it will save the plots to that filename
     (unless the name is 'screen', in which case it will plot on screen),
     otherwise the plots are not saved.
     If position ([ra,dec]) is given, it will be printed above the plots.
-    
+
     Args:
         times (astropy Time array): ionosphere sampling times
         RMs (array): ionospheric RMs at each time (in rad/m^2)
@@ -707,8 +707,8 @@ def plot_timeseries(times,RMs,position=None,savename=None):
     from matplotlib import pyplot as plt
     from matplotlib import dates as mdates
     plot_times=times.plot_date
-    
-    
+
+
     fig,ax1=plt.subplots(1,1,figsize=(8,8))
     ax1.plot_date(plot_times,RMs,fmt='k.')
     locator=mdates.AutoDateLocator(minticks=3,maxticks=7)
@@ -716,13 +716,13 @@ def plot_timeseries(times,RMs,position=None,savename=None):
     ax1.xaxis.set_major_locator(locator)
     ax1.xaxis.set_major_formatter(formatter)
     ax1.set_ylabel('$\phi_\mathrm{ion}$ [rad m$^{-2}$]')
-    
+
     if position is not None:
         ax1.set_title("RA: {:.2f}°, Dec: {:.2f}°".format(position[0],position[1]))
-    
+
     if savename is not None:
         if savename == "screen":
-            plt.show()    
+            plt.show()
         else:
             plt.savefig(savename,bbox_inches='tight')
 
