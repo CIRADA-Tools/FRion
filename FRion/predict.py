@@ -148,7 +148,7 @@ def predict():
 
 
 def calculate_modulation(start_time, end_time, freq_array, telescope_location,
-                         ra,dec, timestep=600.,ionexPath='./IONEXdata/'):
+                         ra,dec, timestep=600.,ionexPath='./IONEXdata/', **kwargs):
     """Calculate the ionospheric FR modulation (time-averaged effect),
     as a function of frequency, for a given observation (time, location, target direction).
 
@@ -173,7 +173,8 @@ def calculate_modulation(start_time, end_time, freq_array, telescope_location,
             time between ionosphere FR estimates. If float, time must be in seconds.
         ionexPath (str, default='./IONEXdata/'): path to download IONEX files to
             for ionosphere calculations.
-
+        **kwargs: additional keyword arguments to pass to RMextract.getRM()
+        
     Returns:
         tuple containing
 
@@ -194,7 +195,7 @@ def calculate_modulation(start_time, end_time, freq_array, telescope_location,
 
     #Calculation of the time-dependent RMs.
     times,RMs=get_RM(start_time, end_time, telescope_location,
-                         ra,dec, timestep=timestep,ionexPath=ionexPath)
+                         ra,dec, timestep=timestep,ionexPath=ionexPath, **kwargs)
 
 
     #Compute the time-integrated change in polarization.
@@ -208,7 +209,7 @@ def calculate_modulation(start_time, end_time, freq_array, telescope_location,
 
 
 def get_RM(start_time, end_time, telescope_location,
-                         ra,dec, timestep=600.,ionexPath='./IONEXdata/'):
+                         ra,dec, timestep=600.,ionexPath='./IONEXdata/', **kwargs):
     """
     Calculate the ionospheric Faraday rotation as a function of time,
     for a given observation (time, location, target direction).
@@ -230,7 +231,8 @@ def get_RM(start_time, end_time, telescope_location,
             time between ionosphere FR estimates. If float, time must be in seconds.
         ionexPath (str, default='./IONEXdata/'): path to download IONEX files to
             for ionosphere calculations.
-
+        **kwargs: additional keyword arguments to pass to RMextract.getRM()
+        
     Returns:
         tuple containing
 
@@ -291,7 +293,8 @@ def get_RM(start_time, end_time, telescope_location,
                           radec=[ra_angle.rad,dec_angle.rad],
                           timestep=timestep_Delta.sec,
                           timerange = timerange,
-                          stat_positions=[telescope_coordinates,])
+                          stat_positions=[telescope_coordinates,],
+                          **kwargs)
     #predictions dictionary contains STEC, Bpar, BField, AirMass, elev, azimuth
     #  RM, times, timestep, station_names, stat_pos, flags, reference_time
     times=Time(predictions['times']/86400.,format='mjd')
