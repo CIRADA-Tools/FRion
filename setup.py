@@ -16,7 +16,7 @@ VERSION = '1.0.1'
 DOWNLOAD_URL = 'https://github.com/Cameron-Van-Eck/FRion/archive/refs/heads/main.zip'
 
 REQUIRED = [
-    'numpy', 'astropy', 'pyephem',
+    'numpy', 'astropy', 'pyephem', 'requests'
     ]
 
 extras_require={}
@@ -57,5 +57,5 @@ setup(
         'Topic :: Scientific/Engineering :: Astronomy',
     ],
     maintainer='Cameron Van Eck',
-    maintainer_email='cameron.van.eck@utoronto.ca',
+    maintainer_email='cameron.vaneck@anu.edu.au',
 )

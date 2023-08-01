@@ -13,12 +13,17 @@ The ionospheric prediction is currently derived from RMExtract
 Other ionosphere RM codes are available (ionFR, ALBUS) are available, but
 RMextract was selected for its ease of install and use.
 
-RMextract relies on external maps of Total Electron Content (TEC). Currently
-the CODG TEC maps are used (this is default for RMextract), but other data
-sources are available. Changing TEC sources would require changing the
-RMExtract call in get_RM(). If anyone knows how to invoke RMExtract with
-alternative TEC sources, please consider contacting me or submitting a pull
-request to add that functionality.
+RMextract relies on external maps of Total Electron Content (TEC). As of 
+version 1.1, the default is to get the TEC data from CDDIS
+(https://cddis.nasa.gov/Data_and_Derived_Products/GNSS/atmospheric_products.html).
+This requires an account and a .netrc file with the credentials
+(https://cddis.nasa.gov/Data_and_Derived_Products/CreateNetrcFile.html).
+Advanced users can change the TEC source using the **kawrgs for RMextract's
+getRM function, with the caveat that this is not supported for the command line
+tools.
+The default TEC maps are now the JPL global maps, based on the results of
+Porayko et al. 2019 who found they performed the best.
+
 
 Two command line functions are available and documented below:
     - predict(): time-averaged Faraday rotation.
@@ -42,6 +47,7 @@ from astropy.coordinates import EarthLocation,SkyCoord,Angle, UnknownSiteExcepti
 import astropy.units as u
 from FRion.correct import find_freq_axis
 import astropy
+from FRion.download_IONEX_CDDIS import get_CDDIS_IONEXfile
 
 C = 2.99792458e8 # Speed of light [m/s]
 
@@ -64,6 +70,10 @@ def predict():
     parameters from a supplied FITS cube or PSRFITS file, if it has the correct
     keywords, otherwise from those parameters must be supplied on the command
     line.
+    
+    By default, gets ionosphere TEC data from CDDIS (https://cddis.nasa.gov/Data_and_Derived_Products/GNSS/atmospheric_products.html)
+    This requires an account and a .netrc file with the credentials to run.
+    (https://cddis.nasa.gov/Data_and_Derived_Products/CreateNetrcFile.html)
     """
 
     parser = argparse.ArgumentParser(description=descStr,
@@ -287,13 +297,23 @@ def get_RM(start_time, end_time, telescope_location,
                         Only astropy.time TimeDelta, astropy.units Quantity, or float (in seconds) allowed.""")
 
 
+    #Pre-download the IONEX data from CDDIS, to work around the RMextract lack
+    #of support for CDDIS downloads.
+    if 'prefix' in kwargs:
+        prefix = kwargs['prefix']
+    else:
+        prefix = 'jplg'
+    
+    _predownload_CDDIS(start_time, end_time,prefix,outpath=ionexPath)
 
-    #Get RMExtract to generate it's RM predictions
+
+    #Get RMExtract to generate its RM predictions
     predictions=RME.getRM(ionexPath=ionexPath,
                           radec=[ra_angle.rad,dec_angle.rad],
                           timestep=timestep_Delta.sec,
                           timerange = timerange,
                           stat_positions=[telescope_coordinates,],
+                          prefix=prefix,
                           **kwargs)
     #predictions dictionary contains STEC, Bpar, BField, AirMass, elev, azimuth
     #  RM, times, timestep, station_names, stat_pos, flags, reference_time
@@ -302,6 +322,34 @@ def get_RM(start_time, end_time, telescope_location,
 
 
     return times, RMs
+
+
+def _predownload_CDDIS(start_time,end_time,prefix='jplg',outpath='./IONEXdata/'):
+    """Downloads the IONEX maps for the required dates from CDDIS.
+    This must occur before RMextract is invoked, otherwise RMextract will try
+    to use its own download tool which is broken.
+    
+    Will try to download all the days between the start and end dates.
+    
+    """
+    from math import ceil
+    
+    
+    #Work out how many days need to be downloaded:
+    start_date=Time(start_time)
+    end_date=Time(end_time)
+    duration = end_date - start_date
+    
+    #Download each day one by one:
+    for i in range(ceil(duration.to(u.day).value)):
+        day = start_date+TimeDelta(i*u.day)
+        _=get_CDDIS_IONEXfile(time=day.value,
+                            prefix=prefix,
+                            outpath=outpath,
+                            overwrite=False)
+    
+
+
 
 def numeric_integration(times,RMs,freq_array):
     """Numerical integration of the time-varying ionospheric polariation
