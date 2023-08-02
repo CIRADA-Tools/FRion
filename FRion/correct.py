@@ -204,6 +204,7 @@ def progress(width, percent):
     sys.stdout.flush()
 
 
+
 def apply_correction_large_cube(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
                               overwrite=False):
     """Functions as apply_correction_to_files, but for files too large to
@@ -284,32 +285,29 @@ def apply_correction_large_cube(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
     Qout_hdu=pf.open(Qoutfile,mode='update',memmap=True)
     Uout_hdu=pf.open(Uoutfile,mode='update',memmap=True)
 
-    Npix=output_header['NAXIS1']*output_header['NAXIS2']
 
-    for i in range(Npix):
-        x=i % output_header['NAXIS1'] 
-        y=i // output_header['NAXIS1']
-        if N_dim==4:
-            Pdata=Qdata[:,:,y,x]+1.j*Udata[:,:,y,x] #Input complex polarization
-        elif N_dim==3:
-            Pdata=Qdata[:,y,x]+1.j*Udata[:,y,x] #Input complex polarization
-        arrshape=np.array(Pdata.shape)  #the correction needs the same number of
-        arrshape[:]=1                   #axes as the input data
-        arrshape[N_dim-freq_axis]=theta.size     #(but they can all be degenerate)
-        Pcorr=np.true_divide(Pdata,np.reshape(theta,arrshape))
-        if N_dim==4:
-            Qout_hdu[0].data[:,:,y,x]=Pcorr.real
-            Uout_hdu[0].data[:,:,y,x]=Pcorr.imag
-        elif N_dim==3:
-            Qout_hdu[0].data[:,y,x]=Pcorr.real
-            Uout_hdu[0].data[:,y,x]=Pcorr.imag
-        if x == 0:
-            progress(40, i/Npix*100)
+
+    for i in range(theta.size): #Iterate over channels.
+        if N_dim==4 & freq_axis == 3:
+            Pdata=Qdata[:,i]+1.j*Udata[:,i] #Input complex polarization
+        else:
+            Pdata=Qdata[i]+1.j*Udata[i] #Input complex polarization
+
+        Pcorr=np.true_divide(Pdata,theta[i])
+        if N_dim==4 & freq_axis == 3:
+            Qout_hdu[0].data[:,i]=Pcorr.real
+            Uout_hdu[0].data[:,i]=Pcorr.imag
+        else:
+            Qout_hdu[0].data[i]=Pcorr.real
+            Uout_hdu[0].data[i]=Pcorr.imag
+
+        progress(40, i/theta.size*100)
 
     Qout_hdu.flush()
     Uout_hdu.flush()
     Qout_hdu.close()
     Uout_hdu.close()
+
 
 
 
