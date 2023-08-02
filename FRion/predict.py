@@ -35,6 +35,7 @@ Two command line functions are available and documented below:
 
 try:
     import RMextract.getRM as RME
+    from RMextract import getIONEX as ionex
 except:
     #This is the easiest solution to the documentation problem:
     #This code needs to be importable when RMextract isn't installed, for
@@ -307,6 +308,10 @@ def get_RM(start_time, end_time, telescope_location,
     _predownload_CDDIS(start_time, end_time,prefix,outpath=ionexPath)
 
 
+    ionexf=ionex.get_urllib_IONEXfile(time=start_time.value,prefix=prefix,outpath=ionexPath,overwrite = False)
+
+    assert (ionexf!=-1),"RMextract fails to recognize IONEX file."
+
     #Get RMExtract to generate its RM predictions
     predictions=RME.getRM(ionexPath=ionexPath,
                           radec=[ra_angle.rad,dec_angle.rad],
@@ -314,6 +319,7 @@ def get_RM(start_time, end_time, telescope_location,
                           timerange = timerange,
                           stat_positions=[telescope_coordinates,],
                           prefix=prefix,
+                          server='http://cddis.gsfc.nasa.gov',
                           **kwargs)
     #predictions dictionary contains STEC, Bpar, BField, AirMass, elev, azimuth
     #  RM, times, timestep, station_names, stat_pos, flags, reference_time
@@ -330,20 +336,21 @@ def _predownload_CDDIS(start_time,end_time,prefix='jplg',outpath='./IONEXdata/')
     to use its own download tool which is broken.
     
     Will try to download all the days between the start and end dates.
+    Is slightly greedy (downloading more days than) may be necessary) as a safety
+    against edge cases.
     
     """
-    from math import ceil
+    from math import ceil, floor
     
     
     #Work out how many days need to be downloaded:
     start_date=Time(start_time)
     end_date=Time(end_time)
-    duration = end_date - start_date
     
     #Download each day one by one:
-    for i in range(ceil(duration.to(u.day).value)):
-        day = start_date+TimeDelta(i*u.day)
-        _=get_CDDIS_IONEXfile(time=day.value,
+    for day_mjd in range(floor(start_date.mjd)-1,ceil(end_date.mjd)+1):
+        day = Time(day_mjd,format='mjd')
+        _=get_CDDIS_IONEXfile(time=day.to_value('isot'),
                             prefix=prefix,
                             outpath=outpath,
                             overwrite=False)

@@ -74,7 +74,7 @@ def get_CDDIS_IONEXfile(time="2023/03/23/02:20:10.01",
         day = time[2]
     mydate = datetime.date(year, month, day)
     dayofyear = mydate.timetuple().tm_yday
-    if not overwrite and os.path.isfile("%s%s%03d0.%02dI"%(outpath,prefix,dayofyear,yy)):
+    if not overwrite and os.path.isfile("%s%s%03d0.%02dI"%(outpath,prefix.upper(),dayofyear,yy)):
         logging.info("FILE exists: %s%s%03d0.%02dI",outpath,prefix,dayofyear,yy)
         return "%s%s%03d0.%02dI"%(outpath,prefix,dayofyear,yy)
    
