@@ -51,7 +51,10 @@ be accessed through the following terminal commands:
 
 Use the ``-h`` flag to get detailed usage instructions for each.
 
-
+**Notice:** The use of FRion has changed somewhat significantly in version 1.1.
+See the :ref:`notes below<ver1.1>` for more information about the changes. The most
+important change is that FRion now requires an account with CDDIS and a corresponding
+.netrc file.
 
 
 Installation
@@ -78,7 +81,9 @@ be importable using the statements ``import FRion.predict as predict`` and
 ``import FRion.correct as correct``, or runable on the terminal with the commands
 ``frion_predict``, ``frion_timeseries``, and ``frion_correct``.
 
-
+Note that to use the default mode (including the command line tools) requires
+an account with CDDIS and a corresponding .netrc file in order to download TEC 
+data; see below for details.
 
 
 
@@ -126,10 +131,39 @@ reduce this memory footprint, and can be enabled in the command-line tool by
 setting the ``-L`` flag or in scripts by using the 
 :py:func:`FRion.correct.apply_correction_large_cube()` function.
  
+ 
 
 
+.. _ver1.1:
 
+Version 1.1
+--------------------
+Versions of FRion prior to 1.1 used the default settings in RMextract for
+downloading ionospheric TEC data, which was to download the CODE global TEC
+maps from CODE. Unfortunately, CODE stopped producing new TEC maps in January
+2023, so it can no longer be used for observations made after that time.
 
+The best alternative source of TEC data was the `NASA CDDIS archive`_,
+but this requires a (free) account to access the data. At time of writing 
+(Aug 2023), RMextract does not support this. A workaround was developed by
+Anna Ordog and Art Davydov at DRAO that allows RMextract to download from CDDIS,
+but it is not clear when this will be deployed into the official release.
+
+As a workaround, I have modified FRion to download the TEC data itself before
+invoking RMextract. This bypasses the need for RMextract to do any downloading,
+which is currently not supported for CDDIS data. This can be bypassed by advanced
+users, by setting the keyword ``pre_download = False`` in the predict functions.
+Also, I have changed the default TEC source to be the JPL global TEC maps. This
+was selected based on the results of `Porayko et al. 2019`_
+who found that the JPL maps produced the lowest residual errors in LOFAR observations.
+
+Downloading data from CDDIS requires an account. Information about applying
+for an account, as well as creating a .netrc file that carries your login 
+credentials, can be `found here`_.
+
+.. _NASA CDDIS archive: https://cddis.nasa.gov/Data_and_Derived_Products/GNSS/atmospheric_products.html
+.. _Porayko et al. 2019: https://ui.adsabs.harvard.edu/abs/2019MNRAS.483.4100P/abstract
+.. _found here: https://cddis.nasa.gov/Data_and_Derived_Products/CDDIS_Archive_Access.html
 
 
 

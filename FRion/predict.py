@@ -6,19 +6,18 @@ time-dependent and time-averaged.
 Uses RMextract package to get time-dependent ionospheric RMs for a given
 observation, then performs the time-integration to work out the effective
 change in polarization angle, and the effective depolarization (together,
-called the ionospheric *modulation*, which is called Theta in the derivation).
+called the ionospheric *modulation*\ , which is called Theta in the derivation).
 
-The ionospheric prediction is currently derived from RMExtract
-(https://github.com/lofar-astron/RMextract/).
+The ionospheric prediction is currently derived from RMExtract (https://github.com/lofar-astron/RMextract/).
 Other ionosphere RM codes are available (ionFR, ALBUS) are available, but
-RMextract was selected for its ease of install and use.
+RMextract was selected for its comparative ease of install and use.
 
 RMextract relies on external maps of Total Electron Content (TEC). As of 
 version 1.1, the default is to get the TEC data from CDDIS
 (https://cddis.nasa.gov/Data_and_Derived_Products/GNSS/atmospheric_products.html).
 This requires an account and a .netrc file with the credentials
 (https://cddis.nasa.gov/Data_and_Derived_Products/CreateNetrcFile.html).
-Advanced users can change the TEC source using the **kawrgs for RMextract's
+Advanced users can change the TEC source using the kwargs for RMextract's
 getRM function, with the caveat that this is not supported for the command line
 tools.
 The default TEC maps are now the JPL global maps, based on the results of
@@ -220,7 +219,8 @@ def calculate_modulation(start_time, end_time, freq_array, telescope_location,
 
 
 def get_RM(start_time, end_time, telescope_location,
-                         ra,dec, timestep=600.,ionexPath='./IONEXdata/', **kwargs):
+                         ra,dec, timestep=600.,ionexPath='./IONEXdata/',
+                         pre_download=True,**kwargs):
     """
     Calculate the ionospheric Faraday rotation as a function of time,
     for a given observation (time, location, target direction).
@@ -304,8 +304,12 @@ def get_RM(start_time, end_time, telescope_location,
         prefix = kwargs['prefix']
     else:
         prefix = 'jplg'
+
+    if 'pre_download' in kwargs:
+        pre_download = kwargs['pre_download']        
     
-    _predownload_CDDIS(start_time, end_time,prefix,outpath=ionexPath)
+    if pre_download == True:
+        _predownload_CDDIS(start_time, end_time,prefix,outpath=ionexPath)
 
 
     ionexf=ionex.get_urllib_IONEXfile(time=start_time.value,prefix=prefix,outpath=ionexPath,overwrite = False)

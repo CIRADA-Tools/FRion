@@ -3,6 +3,7 @@
 Scripts for calculating and applying ionospheric Faraday rotation corrections for radio polarization data, primarily time-independent corrections.
 
 **Full documentation can be found [here](https://frion.readthedocs.io/en/latest/).**
+Note that there are significant changes in **Version 1.1**, which are documented there.
 
 The core underlying tool is [RMextract](https://github.com/lofar-astron/RMextract/) which calculates the time-dependent ionospheric Faraday rotation. This script uses that to generate the time-integrated correction for a given observation.
 
