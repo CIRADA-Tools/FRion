@@ -109,7 +109,8 @@ def get_CDDIS_IONEXfile(time="2023/03/23/02:20:10.01",
 
     if (r.text[0:15] == '<!DOCTYPE html>') or (r.text[0:15] == 'HTTP Basic: Acc'):
         logging.info('CDDIS is requesting authentication; download failed.')
-        return -1
+        raise Exception('CDDIS is requesting authentication; download failed.')
+
 
     with open(fname, 'wb') as fd:
         for chunk in r.iter_content(chunk_size=1000):

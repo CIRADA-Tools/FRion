@@ -354,11 +354,13 @@ def _predownload_CDDIS(start_time,end_time,prefix='jplg',outpath='./IONEXdata/')
     #Download each day one by one:
     for day_mjd in range(floor(start_date.mjd)-1,ceil(end_date.mjd)+1):
         day = Time(day_mjd,format='mjd')
-        _=get_CDDIS_IONEXfile(time=day.to_value('isot'),
+        fname=get_CDDIS_IONEXfile(time=day.to_value('isot'),
                             prefix=prefix,
                             outpath=outpath,
                             overwrite=False)
-    
+
+    if fname == -1:
+        raise Exception('Something has gone wrong in downloading IONEX data.')
 
 
 
