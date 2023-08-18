@@ -218,9 +218,19 @@ def calculate_modulation(start_time, end_time, freq_array, telescope_location,
     return times,RMs, theta
 
 
-def get_RM(start_time, end_time, telescope_location,
-                         ra,dec, timestep=600.,ionexPath='./IONEXdata/',
-                         pre_download=True,**kwargs):
+def get_RM(
+    start_time, 
+    end_time, 
+    telescope_location,
+    ra,
+    dec, 
+    timestep=600.,
+    ionexPath='./IONEXdata/',
+    pre_download=True,
+    prefix='jplg',
+    server='http://cddis.gsfc.nasa.gov',
+    **kwargs
+):
     """
     Calculate the ionospheric Faraday rotation as a function of time,
     for a given observation (time, location, target direction).
@@ -242,6 +252,11 @@ def get_RM(start_time, end_time, telescope_location,
             time between ionosphere FR estimates. If float, time must be in seconds.
         ionexPath (str, default='./IONEXdata/'): path to download IONEX files to
             for ionosphere calculations.
+        pre_download (bool, default=True): if True, will pre-download the IONEX
+            files from CDDIS before running RMextract.
+        prefix (str, default='jplg'): prefix for IONEX files to download.
+        server (str, default='http://cddis.gsfc.nasa.gov'): server to download
+            IONEX files from.
         **kwargs: additional keyword arguments to pass to RMextract.getRM()
         
     Returns:
@@ -299,22 +314,9 @@ def get_RM(start_time, end_time, telescope_location,
 
 
     #Pre-download the IONEX data from CDDIS, to work around the RMextract lack
-    #of support for CDDIS downloads.
-    if 'prefix' in kwargs:
-        prefix = kwargs['prefix']
-    else:
-        prefix = 'jplg'
-
-    if 'pre_download' in kwargs:
-        pre_download = kwargs['pre_download']        
-    
-    if pre_download == True:
+    #of support for CDDIS downloads.    
+    if pre_download:
         _predownload_CDDIS(start_time, end_time,prefix,outpath=ionexPath)
-
-
-    ionexf=ionex.get_urllib_IONEXfile(time=start_time.value,prefix=prefix,outpath=ionexPath,overwrite = False)
-
-    assert (ionexf!=-1),"RMextract fails to recognize IONEX file."
 
     #Get RMExtract to generate its RM predictions
     predictions=RME.getRM(ionexPath=ionexPath,
@@ -323,8 +325,10 @@ def get_RM(start_time, end_time, telescope_location,
                           timerange = timerange,
                           stat_positions=[telescope_coordinates,],
                           prefix=prefix,
-                          server='http://cddis.gsfc.nasa.gov',
-                          **kwargs)
+                          server=server,
+                          **kwargs,
+                        )
+    
     #predictions dictionary contains STEC, Bpar, BField, AirMass, elev, azimuth
     #  RM, times, timestep, station_names, stat_pos, flags, reference_time
     times=Time(predictions['times']/86400.,format='mjd')
