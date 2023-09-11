@@ -88,9 +88,10 @@ data; see below for details.
 In some cases users may encounter an error 
 ``RuntimeError: Cannot convert due to missing frame information``.
 This occurs when RMextract finds casacore and tries to use it, but is missing
-the casadata module. At one point this could be solved by installing casadata
+the casadata module. This can be solved by installing casadata
 (``pip install --index-url https://casa-pip.nrao.edu/repository/pypi-casa-release/simple casadata``),
-but this has not been successful in all cases. Removing casacore 
+and updating the ``.casarc`` file to point to the updated install.
+Removing casacore 
 (``pip uninstall python-casacore``) solves the issue by forcing RMextract to
 rely on the ephem module instead.
 
