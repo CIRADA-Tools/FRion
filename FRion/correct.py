@@ -41,7 +41,7 @@ def apply_correction_to_files(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
     
     #Get all data:
     frequencies,theta=read_prediction(predictionfile)
-    Qdata,Udata,header=readData(Qfile,Ufile)
+    Qdata,Udata,Qheader,Uheader=readData(Qfile,Ufile)
     
     #Checks for data consistency.
     if (Qdata.shape != Udata.shape):
@@ -57,7 +57,7 @@ def apply_correction_to_files(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
     Qcorr,Ucorr=correct_cubes(Qdata,Udata,theta)
     
     #Save results
-    write_corrected_cubes(Qoutfile,Uoutfile,Qcorr,Ucorr,header,
+    write_corrected_cubes(Qoutfile,Uoutfile,Qcorr,Ucorr,Qheader,Uheader,
                           overwrite=overwrite)
 
 
@@ -111,15 +111,15 @@ def readData(Qfilename,Ufilename):
     """    
     
     hdulistQ=pf.open(Qfilename,memmap=True)
-    header=hdulistQ[0].header
+    Qheader=hdulistQ[0].header
     Qdata=hdulistQ[0].data
     hdulistU=pf.open(Ufilename,memmap=True)
     Udata=hdulistU[0].data
+    Uheader=hdulistU[0].header
     
-    
-    N_dim=header['NAXIS'] #Get number of axes
+    N_dim=Qheader['NAXIS'] #Get number of axes
 
-    freq_axis=find_freq_axis(header) 
+    freq_axis=find_freq_axis(Qheader) 
     #If the frequency axis isn't the last one, rotate the array until it is.
     #Recall that pyfits reverses the axis ordering, so we want frequency on
     #axis 0 of the numpy array.
@@ -128,10 +128,10 @@ def readData(Qfilename,Ufilename):
         Udata=np.moveaxis(Udata,N_dim-freq_axis,0)
 
     
-    return Qdata, Udata, header
+    return Qdata, Udata, Qheader, Uheader
 
 
-def write_corrected_cubes(Qoutputname,Uoutputname,Qcorr,Ucorr,header,overwrite=False):
+def write_corrected_cubes(Qoutputname,Uoutputname,Qcorr,Ucorr,Qheader,Uheader,overwrite=False):
     """    Write the corrected Q and U data to FITS files. Copies the supplied 
     header, adding a note to the history saying that the correction was applied.
     
@@ -140,23 +140,26 @@ def write_corrected_cubes(Qoutputname,Uoutputname,Qcorr,Ucorr,header,overwrite=F
         Uoutputname (str): filename to write corrected Stoke U data to.
         Qcorr (array): corrected Stokes Q data
         Ucorr (array): corrected Stokes U data
-        header: Astropy FITS header object that describes the data
+        [Q/U]header: Astropy FITS header objects that describes the data
         overwrite (bool): overwrite Stokes Q/U files if they already exist? [False]
         
     """
-    output_header=header.copy()
-    output_header.add_history('Corrected for ionospheric Faraday rotation using FRion.')
+    Qoutput_header=Qheader.copy()
+    Qoutput_header.add_history('Corrected for ionospheric Faraday rotation using FRion.')
+    Uoutput_header=Uheader.copy()
+    Uoutput_header.add_history('Corrected for ionospheric Faraday rotation using FRion.')
+
 
     #Get data back to original axis order, if necessary.
-    N_dim=output_header['NAXIS'] #Get number of axes
-    freq_axis=find_freq_axis(output_header)
+    N_dim=Qoutput_header['NAXIS'] #Get number of axes
+    freq_axis=find_freq_axis(Qoutput_header)
     if freq_axis != 0:
         Qcorr=np.moveaxis(Qcorr,0,N_dim-freq_axis)
         Ucorr=np.moveaxis(Ucorr,0,N_dim-freq_axis)
 
 
-    pf.writeto(Qoutputname,Qcorr,output_header,overwrite=overwrite)
-    pf.writeto(Uoutputname,Ucorr,output_header,overwrite=overwrite)
+    pf.writeto(Qoutputname,Qcorr.astype('float32'),Qoutput_header,overwrite=overwrite)
+    pf.writeto(Uoutputname,Ucorr.astype('float32'),Uoutput_header,overwrite=overwrite)
 
     
 
@@ -233,14 +236,14 @@ def apply_correction_large_cube(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
     frequencies,theta=read_prediction(predictionfile)
 
     hdulistQ=pf.open(Qfile,memmap=True)
-    header=hdulistQ[0].header
+    Qheader=hdulistQ[0].header
     Qdata=hdulistQ[0].data
     hdulistU=pf.open(Ufile,memmap=True)
     Udata=hdulistU[0].data
+    Uheader=hdulistU[0].header
     
-    
-    N_dim=header['NAXIS'] #Get number of axes
-    freq_axis=find_freq_axis(header) 
+    N_dim=Qheader['NAXIS'] #Get number of axes
+    freq_axis=find_freq_axis(Qheader) 
     #Checks for data consistency.
     if (Qdata.shape != Udata.shape):
         raise Exception("Q and U files don't have same dimensions.")
@@ -254,9 +257,10 @@ def apply_correction_large_cube(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
     
 
     #Add correction to header history
-    output_header=header.copy()
-    output_header.add_history('Corrected for ionospheric Faraday rotation using FRion.')
-
+    Qoutput_header=Qheader.copy()
+    Qoutput_header.add_history('Corrected for ionospheric Faraday rotation using FRion.')
+    Uoutput_header=Uheader.copy()
+    Uoutput_header.add_history('Corrected for ionospheric Faraday rotation using FRion.')
 
 
     #Deal with any existing output files:
@@ -269,16 +273,16 @@ def apply_correction_large_cube(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
         
     #Create large blank files. This seems to produce file size complaints 
     #sometimes, but those seem harmless so far.
-    shape = tuple(output_header['NAXIS{0}'.format(ii)] for ii in range(1, output_header['NAXIS']+1))
+    shape = tuple(Qoutput_header['NAXIS{0}'.format(ii)] for ii in range(1, Qoutput_header['NAXIS']+1))
     
-    output_header.tofile(Qoutfile)
+    Qoutput_header.tofile(Qoutfile)
     with open(Qoutfile, 'rb+') as fobj:
-        fobj.seek(len(output_header.tostring()) + (np.product(shape) * np.abs(output_header['BITPIX']//8)) - 1)
+        fobj.seek(len(Qoutput_header.tostring()) + (np.product(shape) * np.abs(Qoutput_header['BITPIX']//8)) - 1)
         fobj.write(b'\0')
 
-    output_header.tofile(Uoutfile)
+    Uoutput_header.tofile(Uoutfile)
     with open(Uoutfile, 'rb+') as fobj:
-        fobj.seek(len(output_header.tostring()) + (np.product(shape) * np.abs(output_header['BITPIX']//8)) - 1)
+        fobj.seek(len(Uoutput_header.tostring()) + (np.product(shape) * np.abs(Uoutput_header['BITPIX']//8)) - 1)
         fobj.write(b'\0')
 
 
@@ -288,13 +292,13 @@ def apply_correction_large_cube(Qfile,Ufile,predictionfile,Qoutfile,Uoutfile,
 
 
     for i in range(theta.size): #Iterate over channels.
-        if N_dim==4 & freq_axis == 3:
+        if (N_dim==4) & (freq_axis == 3):
             Pdata=Qdata[:,i]+1.j*Udata[:,i] #Input complex polarization
         else:
             Pdata=Qdata[i]+1.j*Udata[i] #Input complex polarization
 
         Pcorr=np.true_divide(Pdata,theta[i])
-        if N_dim==4 & freq_axis == 3:
+        if (N_dim==4) & (freq_axis == 3):
             Qout_hdu[0].data[:,i]=Pcorr.real
             Uout_hdu[0].data[:,i]=Pcorr.imag
         else:
