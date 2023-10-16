@@ -23,7 +23,7 @@ import datetime
 import logging
 import os
 # AO, AD added these:
-import requests
+#import requests
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -88,11 +88,6 @@ def get_CDDIS_IONEXfile(time="2023/03/23/02:20:10.01",
     # Url of the backup server has the syntax "ftp://cddis.gsfc.nasa.gov/gnss/products/ionex/YYYY/DOY/codgDOY.YYi.Z where DOY is the day of the year, padded with leading zero if <100, and YY is the last two digits of year.
     #try primary url
 
-    try:
-        primary = request.urlopen(server,timeout=30)
-    except:
-        logging.error('Server not responding')
-
 
     url = "https://cddis.nasa.gov/archive/gnss/products/ionex/%4d/%03d/%s%03d0.%02di.Z"%(year,dayofyear,prefix,dayofyear,yy)
 
@@ -100,21 +95,8 @@ def get_CDDIS_IONEXfile(time="2023/03/23/02:20:10.01",
     fname = outpath+'/'+(url.split('/')[-1]).upper()
     print("Downloading ",url)
 
-    # AO, AD put in this block:
-    try:
-        r = requests.get(url)
-    except:
-        logging.info("No files found on %s for %s",server,fname)
-        return -1
 
-    if (r.text[0:15] == '<!DOCTYPE html>') or (r.text[0:15] == 'HTTP Basic: Acc'):
-        logging.info('CDDIS is requesting authentication; download failed.')
-        raise Exception('CDDIS is requesting authentication; download failed.')
-
-
-    with open(fname, 'wb') as fd:
-        for chunk in r.iter_content(chunk_size=1000):
-            fd.write(chunk)
+    os.system(f'wget --auth-no-challenge -O {fname} "{url}"')
 
     
     ###### gunzip files
