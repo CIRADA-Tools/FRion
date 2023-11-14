@@ -84,15 +84,34 @@ def get_CDDIS_IONEXfile(time="2023/03/23/02:20:10.01",
     except ImportError:
         import urllib2 as request
 
-    # Url of the primary server has the syntax "ftp://ftp.aiub.unibe.ch/CODE/YYYY/CODGDOY0.YYI.Z" where DOY is the day of the year, padded with leading zero if <100, and YY is the last two digits of year.
-    # Url of the backup server has the syntax "ftp://cddis.gsfc.nasa.gov/gnss/products/ionex/YYYY/DOY/codgDOY.YYi.Z where DOY is the day of the year, padded with leading zero if <100, and YY is the last two digits of year.
-    #try primary url
+
+    #Naming conventions changed, at different times for different data sets.
+    #Depending on the data source/prefix, the filename has to be completely 
+    #different for different date ranges. This needs to be manually coded,
+    #which means supporting a limited range of data sources. I'll try to support
+    #the main ones stored at CDDIS.
+    
+    if prefix == 'jplg' and mydate > datetime.date(2023,8,7):
+        filename=f"{prefix[0:3].upper()}0OPSFIN_{year}{dayofyear}0000_01D_02H_GIM.INX.gz"
+    elif prefix == 'codg' and mydate > datetime.date(2022,11,26):
+        filename=f"{prefix[0:3].upper()}0OPSFIN_{year}{dayofyear}0000_01D_01H_GIM.INX.gz"
+    elif prefix == 'igsg' and mydate > datetime.date(2022,11,26):
+        filename=f"{prefix[0:3].upper()}0OPSFIN_{year}{dayofyear}0000_01D_02H_GIM.INX.gz"
+    elif prefix == 'casg' and mydate > datetime.date(2022,12,31):
+        filename=f"{prefix[0:3].upper()}0OPSFIN_{year}{dayofyear}0000_01D_30M_GIM.INX.gz"
+    elif prefix == 'esag':
+        if mydate <= datetime.date(2023,2,4):
+            raise Exception("ESA did not publish GIM.INX.gz files prior to 2023 Feb 04.")
+        else:
+            filename=f"{prefix[0:3].upper()}0OPSFIN_{year}{dayofyear}0000_01D_02H_GIM.INX.gz"
+    else:
+        filename=f"{prefix}{dayofyear:03d}0.{yy:02d}i.Z"
 
 
-    url = "https://cddis.nasa.gov/archive/gnss/products/ionex/%4d/%03d/%s%03d0.%02di.Z"%(year,dayofyear,prefix,dayofyear,yy)
+    url = "https://cddis.nasa.gov/archive/gnss/products/ionex/%4d/%03d/%s"%(year,dayofyear,filename)
 
-    # Download IONEX file, make sure it is always uppercase
-    fname = outpath+'/'+(url.split('/')[-1]).upper()
+    # Download IONEX file, make sure output format is old-format name and uppercase.
+    fname = outpath+'/'+(f"{prefix}{dayofyear:03d}0.{yy:02d}i.Z").upper()
     print("Downloading ",url)
 
 
@@ -111,7 +130,6 @@ def get_CDDIS_IONEXfile(time="2023/03/23/02:20:10.01",
     #returns filename of uncompressed file
 
     return fname
-
 
 
 
