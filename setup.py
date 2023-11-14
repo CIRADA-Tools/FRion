@@ -12,7 +12,7 @@ NAME = 'FRion'
 DESCRIPTION = 'Ionospheric Faraday rotation prediction and correction for radio astronomy polarization cubes.'
 URL = 'https://github.com/Cameron-Van-Eck/FRion'
 REQUIRES_PYTHON = '>=3.5.0'
-VERSION = '1.1.1'
+VERSION = '1.1.2'
 DOWNLOAD_URL = 'https://github.com/Cameron-Van-Eck/FRion/archive/refs/heads/main.zip'
 
 REQUIRED = [
