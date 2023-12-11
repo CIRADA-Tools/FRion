@@ -506,11 +506,11 @@ def generate_plots(times,RMs,theta,freq_array,position=None,savename=None):
     formatter = mdates.ConciseDateFormatter(locator)
     ax1.xaxis.set_major_locator(locator)
     ax1.xaxis.set_major_formatter(formatter)
-    ax1.set_ylabel('$\phi_\mathrm{ion}$ [rad m$^{-2}$]')
+    ax1.set_ylabel(r'$\phi_\mathrm{ion}$ [rad m$^{-2}$]')
 
     ax2.plot(freq_array,np.abs(theta),'k.')
     ax2.set_xlabel('Frequency [Hz]')
-    ax2.set_ylabel('|$\Theta(\lambda^2)$|')
+    ax2.set_ylabel(r'|$\Theta(\lambda^2)$|')
     if position is not None:
         ax1.set_title("RA: {:.2f}°, Dec: {:.2f}°".format(position[0],position[1]))
 
@@ -783,7 +783,7 @@ def plot_timeseries(times,RMs,position=None,savename=None):
     formatter = mdates.ConciseDateFormatter(locator)
     ax1.xaxis.set_major_locator(locator)
     ax1.xaxis.set_major_formatter(formatter)
-    ax1.set_ylabel('$\phi_\mathrm{ion}$ [rad m$^{-2}$]')
+    ax1.set_ylabel(r'$\phi_\mathrm{ion}$ [rad m$^{-2}$]')
 
     if position is not None:
         ax1.set_title("RA: {:.2f}°, Dec: {:.2f}°".format(position[0],position[1]))
