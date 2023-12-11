@@ -13,4 +13,3 @@ This packages original author, and maintainer as of Mar 2022, is Cameron Van Eck
 Please submit bug reports and feature requests fo the GitHub issues page, and feel free to email me with questions or comments.
 
 More information on the Canadian Initiative for Radio Astronomy Data Analysis (CIRADA) can be found at cirada.ca.
-
