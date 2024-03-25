@@ -101,6 +101,7 @@ def predict():
                         help="Filename to save the plots to. Entering 'screen' plots to the screen.")
     parser.add_argument("--timestep",dest='timestep',default=600.,type=float,
                         help="Timestep for ionospheric prediction, in seconds. Default = 600")
+    parser.add_argument("-P", dest="tec_prefix",type=str,default='uqrg',metavar='TEC_SOURCE')
     args = parser.parse_args()
 
 
@@ -148,7 +149,8 @@ def predict():
         raise Exception("Cannot continue without parameters listed above.")
 
     times,RMs,theta=calculate_modulation(start_time, end_time, freq_arr, telescope,
-                         ra,dec, timestep=args.timestep,ionexPath='./IONEXdata/')
+                         ra,dec, timestep=args.timestep,
+                         ionexPath='./IONEXdata/', prefix=args.tec_prefix)
 
     if args.savefile is not None:
         write_modulation(freq_arr,theta,args.savefile)
@@ -158,7 +160,8 @@ def predict():
 
 
 def calculate_modulation(start_time, end_time, freq_array, telescope_location,
-                         ra,dec, timestep=600.,ionexPath='./IONEXdata/', **kwargs):
+                         ra,dec, timestep=600.,ionexPath='./IONEXdata/',
+                         prefix='uqrg', **kwargs):
     """Calculate the ionospheric FR modulation (time-averaged effect),
     as a function of frequency, for a given observation (time, location, target direction).
 
@@ -205,7 +208,8 @@ def calculate_modulation(start_time, end_time, freq_array, telescope_location,
 
     #Calculation of the time-dependent RMs.
     times,RMs=get_RM(start_time, end_time, telescope_location,
-                         ra,dec, timestep=timestep,ionexPath=ionexPath, **kwargs)
+                         ra,dec, timestep=timestep,ionexPath=ionexPath,
+                         prefix=prefix,**kwargs)
 
 
     #Compute the time-integrated change in polarization.
@@ -227,7 +231,7 @@ def get_RM(
     timestep=600.,
     ionexPath='./IONEXdata/',
     pre_download=True,
-    prefix='jplg',
+    prefix='uqrg',
     server='http://cddis.gsfc.nasa.gov',
     **kwargs
 ):
@@ -254,7 +258,7 @@ def get_RM(
             for ionosphere calculations.
         pre_download (bool, default=True): if True, will pre-download the IONEX
             files from CDDIS before running RMextract.
-        prefix (str, default='jplg'): prefix for IONEX files to download.
+        prefix (str, default='uqrg'): prefix for IONEX files to download.
         server (str, default='http://cddis.gsfc.nasa.gov'): server to download
             IONEX files from.
         **kwargs: additional keyword arguments to pass to RMextract.getRM()
@@ -338,7 +342,7 @@ def get_RM(
     return times, RMs
 
 
-def _predownload_CDDIS(start_time,end_time,prefix='jplg',outpath='./IONEXdata/'):
+def _predownload_CDDIS(start_time,end_time,prefix='uqrg',outpath='./IONEXdata/'):
     """Downloads the IONEX maps for the required dates from CDDIS.
     This must occur before RMextract is invoked, otherwise RMextract will try
     to use its own download tool which is broken.

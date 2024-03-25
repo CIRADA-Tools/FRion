@@ -174,6 +174,9 @@ credentials, can be `found here`_.
 .. _Porayko et al. 2019: https://ui.adsabs.harvard.edu/abs/2019MNRAS.483.4100P/abstract
 .. _found here: https://cddis.nasa.gov/Data_and_Derived_Products/CDDIS_Archive_Access.html
 
+ver 1.1.1: Fixes to propagation of Stokes headers in Stokes U (was previously copying Stokes Q header)  
+ver 1.1.2: Updated to new filename convention used in CDDIS for new data.  
+ver 1.1.3: JPLG data is no longer being produced (as of Aug 2023); switching default data to UQRG.  
 
 
 
