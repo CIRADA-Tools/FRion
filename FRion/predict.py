@@ -43,6 +43,7 @@ except:
     print('Cannot import RMextract. Continuing import, but will fail if called.')
 from astropy.time import Time,TimeDelta
 import numpy as np
+from scipy.integrate import simpson as simps
 from astropy.coordinates import EarthLocation,SkyCoord,Angle, UnknownSiteException
 import astropy.units as u
 from FRion.correct import find_freq_axis
@@ -385,7 +386,6 @@ def numeric_integration(times,RMs,freq_array):
     Returns: array: time-integrated ionospheric modulation per channel.
     """
 
-    from scipy.integrate import simps
     l2_arr=(C/freq_array)**2
     z=np.exp(2.j*np.outer(l2_arr,RMs))
 
