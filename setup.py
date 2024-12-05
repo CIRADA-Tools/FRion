@@ -16,8 +16,8 @@ VERSION = '1.1.3'
 DOWNLOAD_URL = 'https://github.com/Cameron-Van-Eck/FRion/archive/refs/heads/main.zip'
 
 REQUIRED = [
-    'numpy', 'astropy', 'pyephem', 'requests'
-    ]
+    'numpy', 'astropy', 'pyephem', 'requests', 'scipy'
+]
 
 extras_require={}
 
