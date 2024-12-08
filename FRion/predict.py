@@ -391,8 +391,8 @@ def numeric_integration(times,RMs,freq_array):
 
     #Scipy's numerical integrators can't handle complex numbers, so the
     # integral needs to be broken into real and complex components.
-    real=simps(z.real,times,axis=1)
-    imag=simps(z.imag,times,axis=1)
+    real= simps(y=z.real, x=times, axis=1)
+    imag= simps(y=z.imag, x=times, axis=1)
     theta=(real+1.j*imag)/(times[-1]-times[0])
     return theta
 
