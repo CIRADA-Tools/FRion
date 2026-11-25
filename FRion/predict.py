@@ -20,8 +20,8 @@ This requires an account and a .netrc file with the credentials
 Advanced users can change the TEC source using the kwargs for RMextract's
 getRM function, with the caveat that this is not supported for the command line
 tools.
-The default TEC maps are now the JPL global maps, based on the results of
-Porayko et al. 2019 who found they performed the best.
+The default TEC maps are now the UQRG global maps, since the previously used JPL maps 
+are no longer available.
 
 
 Two command line functions are available and documented below:
@@ -468,7 +468,7 @@ def get_telescope_coordinates(telescope):
         return telescope
     elif type(telescope) == str: #Hardcoded coordinates for some telescopes.
         if telescope == 'ASKAP':
-            lat = -1*26+42/60+15/3600 #degree
+            lat = -1*(26+42/60+15/3600) #degree
             long = +1*116+39/60+32/3600 # degree
             height = 381.0 #
         else:
@@ -732,7 +732,7 @@ def timeseries():
 
 
     if args.savefig is not None:
-        generate_plots(times,RMs,position=[ra,dec],savename=args.savefig)
+        plot_timeseries(times,RMs,position=[ra,dec],savename=args.savefig)
 
 
 

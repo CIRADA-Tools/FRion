@@ -177,7 +177,8 @@ credentials, can be `found here`_.
 ver 1.1.1: Fixes to propagation of Stokes headers in Stokes U (was previously copying Stokes Q header)  
 ver 1.1.2: Updated to new filename convention used in CDDIS for new data.  
 ver 1.1.3: JPLG data is no longer being produced (as of Aug 2023); switching default data to UQRG.  
-
+ver 1.1.4/5: Fixed problem with deprecated numerical integration function.  
+ver 1.1.6: Typo in ASKAP coordinates has been fixed; previously it was too far north by 156 km, introducing some minor errors (typically of order 0.2 rad/m^2) for ASKAP predictions.  
 
 
 Indices and tables
